@@ -1,0 +1,28 @@
+﻿# 환경 변수 및 인증키 보안
+.env
+
+# 가상환경
+.venv/
+env/
+venv/
+
+# 파이썬 캐시
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# 수집된 데이터 및 생성된 보고서 (샘플 제외 원본 데이터)
+data/*.csv
+reports/*.md
+
+# 빌드 산출물
+dist/
+build/
+*.egg-info/
+
+# IDE 및 OS 관련
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
