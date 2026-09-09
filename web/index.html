@@ -1,0 +1,170 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>네이버 뉴스 IT/과학 AI 브리핑 시스템</title>
+  <!-- Flatpickr 모던 캘린더 CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_blue.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- 상단 헤더 -->
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-icon">🔬</span>
+        <div class="brand-text">
+          <h1>네이버 뉴스 [IT/과학] AI 브리핑 시스템</h1>
+          <p>네이버 IT/과학 섹션(sid1=105) 전체 최신순 수집 & gpt-5.6-luna 3대 카테고리 심층 분석</p>
+        </div>
+      </div>
+      <div class="header-badges">
+        <span class="badge primary">gpt-5.6-luna</span>
+        <span class="badge secondary">IT/과학 (섹션 105)</span>
+        <span class="badge info" id="app-status-badge">대기 중</span>
+      </div>
+    </header>
+
+    <!-- 컨트롤 패널 (날짜, 카테고리, 건수, 실행) -->
+    <section class="control-panel">
+      <div class="control-grid">
+        <!-- 1. 달력 날짜 선택기 -->
+        <div class="form-group date-group">
+          <label for="date-range">📅 수집 일자 선택 <span class="label-tip">(단일일 또는 기간 클릭)</span></label>
+          <div class="input-with-icon">
+            <input type="text" id="date-range" placeholder="달력에서 날짜를 선택하세요" readonly>
+            <span class="calendar-icon">🗓️</span>
+          </div>
+        </div>
+
+        <!-- 2. 수집 카테고리 (IT/과학 고정 안내) -->
+        <div class="form-group category-group">
+          <label>🌐 수집 카테고리</label>
+          <div class="category-display-box">
+            <span class="category-tag">네이버 뉴스 &gt; IT/과학 (전체)</span>
+          </div>
+        </div>
+
+        <!-- 3. 수집 건수 -->
+        <div class="form-group count-group">
+          <label for="max-items">🎯 최대 수집 건수</label>
+          <select id="max-items">
+            <option value="10">10건 (고속 테스트)</option>
+            <option value="20" selected>20건 (권장)</option>
+            <option value="30">30건 (심층 분석)</option>
+            <option value="50">50건 (대량 수집)</option>
+            <option value="100">100건 (최대)</option>
+          </select>
+        </div>
+
+        <!-- 4. 원클릭 실행 버튼 -->
+        <div class="form-group action-group">
+          <button type="button" id="run-btn" class="btn primary-btn">
+            <span class="btn-icon">🚀</span>
+            <span class="btn-text">IT/과학 뉴스 수집 & AI 보고서 생성</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 진행 상태 바 -->
+      <div class="progress-wrap" id="progress-wrap" style="display: none;">
+        <div class="progress-info">
+          <span class="progress-msg" id="progress-msg">작업을 준비하고 있습니다...</span>
+          <span class="progress-pct" id="progress-pct">0%</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="progress-bar-fill" style="width: 0%;"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 메인 대시보드 2열 뷰 -->
+    <main class="dashboard-main">
+      <!-- 좌측: 수집된 뉴스 목록 및 CSV 테이블 -->
+      <section class="panel left-panel">
+        <div class="panel-header">
+          <div class="panel-title-box">
+            <span class="panel-icon">📰</span>
+            <h2>[IT/과학] 수집 기사 목록</h2>
+            <span class="count-badge" id="article-count-badge">0건</span>
+          </div>
+          <div class="panel-actions">
+            <button type="button" class="btn small-btn" id="open-data-btn" title="CSV 파일이 저장된 폴더 열기">
+              📁 CSV 폴더
+            </button>
+          </div>
+        </div>
+
+        <div class="stats-summary" id="stats-summary">
+          <div class="stat-card">
+            <span class="stat-label">조회 기간</span>
+            <span class="stat-value" id="stat-period">-</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">저장 파일</span>
+            <span class="stat-value truncate" id="stat-csv">-</span>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="news-table" id="news-table">
+            <thead>
+              <tr>
+                <th style="width: 45px;">#</th>
+                <th>기사 제목</th>
+                <th style="width: 90px;">언론사</th>
+                <th style="width: 130px;">발행일시</th>
+                <th style="width: 60px;">링크</th>
+              </tr>
+            </thead>
+            <tbody id="news-tbody">
+              <tr>
+                <td colspan="5" class="empty-cell">상단에서 날짜를 선택하고 [IT/과학 뉴스 수집 & AI 보고서 생성] 버튼을 눌러주세요.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 우측: AI 마크다운 보고서 뷰어 -->
+      <section class="panel right-panel">
+        <div class="panel-header">
+          <div class="panel-title-box">
+            <span class="panel-icon">📑</span>
+            <h2>AI 테크 브리핑 보고서 (.md)</h2>
+          </div>
+          <div class="panel-actions">
+            <button type="button" class="btn small-btn" id="copy-report-btn" title="마크다운 텍스트 복사">
+              📋 복사
+            </button>
+            <button type="button" class="btn small-btn" id="open-file-btn" title="보고서 파일 기본 뷰어로 열기">
+              📄 파일 열기
+            </button>
+            <button type="button" class="btn small-btn" id="open-reports-btn" title="보고서 저장 폴더 열기">
+              📁 폴더
+            </button>
+          </div>
+        </div>
+
+        <div class="report-container" id="report-container">
+          <div class="report-empty" id="report-empty">
+            <div class="empty-icon">💡</div>
+            <h3>생성된 AI 보고서가 없습니다</h3>
+            <p>네이버 뉴스 IT/과학 기사가 수집되면 <b>gpt-5.6-luna</b>가 기사를 읽고<br>
+            <b>[AI 긍정 / AI 부정 / 기타 과학기술]</b> 3대 카테고리로 분석한 보고서를 이곳에 출력합니다.</p>
+          </div>
+          <div class="markdown-body" id="report-content" style="display: none;"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- 라이브러리 스크립트 -->
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ko.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
