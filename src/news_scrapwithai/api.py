@@ -1,5 +1,6 @@
 ﻿"""
 pywebview 백엔드 브리지 API 모듈 (api.py)
+데이터베이스 연동 및 AI 비서 챗봇 실시간 지시 통신 지원
 """
 
 import os
@@ -12,6 +13,7 @@ import pandas as pd
 
 from news_scrapwithai.ai_reporter import NewsReportGenerator
 from news_scrapwithai.config import DATA_DIR, REPORTS_DIR
+from news_scrapwithai.database import NewsDatabase
 from news_scrapwithai.scraper import NaverNewsCollector
 
 
@@ -21,6 +23,7 @@ class NewsAppApi:
     def __init__(self) -> None:
         self.collector = NaverNewsCollector()
         self.reporter = NewsReportGenerator()
+        self.db = NewsDatabase()
 
         # 최근 수집 및 분석 상태
         self.articles: List[Dict[str, Any]] = []
@@ -43,11 +46,11 @@ class NewsAppApi:
         self,
         start_date: str,
         end_date: str,
-        query: str = "",  # IT/과학 전체 수집이 기본
+        query: str = "",
         max_items: int = 30,
     ) -> Dict[str, Any]:
         """
-        네이버 뉴스 IT/과학(sid1=105) 전체 수집 및 AI 보고서 생성 파이프라인
+        네이버 뉴스 IT/과학 전체 수집 ➔ DB 적재(중복 자동 스킵) ➔ 사용자 지시 반영 AI 보고서 생성 파이프라인
         """
         if self.status["is_running"]:
             return {"success": False, "error": "이미 다른 작업이 진행 중입니다."}
@@ -110,22 +113,28 @@ class NewsAppApi:
                 self.articles = []
                 return
 
-            # 2. CSV 저장
-            csv_path = self.collector.save_csv(df_news, dt_start, dt_end)
-            self.last_csv_path = str(csv_path)
             self.articles = df_news.to_dict(orient="records")
 
-            # 3. gpt-5.6-luna 3대 카테고리 분석 보고서 생성
+            # 2. 데이터베이스 영구 적재 (INSERT OR IGNORE 중복 방지)
+            inserted, skipped = self.db.save_articles(self.articles)
+
+            # 3. 엑셀 호환 CSV 저장 (호환성 유지)
+            csv_path = self.collector.save_csv(df_news, dt_start, dt_end)
+            self.last_csv_path = str(csv_path)
+
+            # 4. 사용자 지시사항(챗봇 히스토리)을 종합한 AI 보고서 생성
             self.status.update({
                 "step": "reporting",
-                "progress": 92,
-                "message": f"IT/과학 기사 {len(df_news)}건 수집 완료! gpt-5.6-luna 3대 카테고리 분석 중...",
+                "progress": 90,
+                "message": f"수집 완료(DB 신규 {inserted}건, 기존 {skipped}건)! 사용자 지시사항 반영 AI 보고서 작성 중...",
             })
 
+            chat_history = self.db.get_chat_history()
             report_res = self.reporter.generate_report(
                 articles=self.articles,
                 start_date_str=self.start_date_str,
                 end_date_str=self.end_date_str,
+                chat_history=chat_history,
             )
 
             if not report_res.get("success"):
@@ -139,12 +148,25 @@ class NewsAppApi:
 
             self.last_report = report_res
 
-            # 4. 완료
+            # 5. 생성된 보고서 및 다대다 매핑(report_articles) DB 저장
+            article_links = [a.get("link") for a in self.articles if a.get("link")]
+            report_id = self.db.save_report(
+                title=f"IT/과학 뉴스 브리핑 ({report_res.get('period')})",
+                period=report_res.get("period", ""),
+                article_count=len(self.articles),
+                user_instructions=report_res.get("user_instructions", ""),
+                report_md=report_res.get("report_md", ""),
+                file_path=report_res.get("file_path", ""),
+                article_links=article_links,
+            )
+            report_res["db_report_id"] = report_id
+
+            # 6. 전체 파이프라인 완료
             self.status.update({
                 "is_running": False,
                 "step": "done",
                 "progress": 100,
-                "message": f"🎉 전체 작업 완료! IT/과학 기사 {len(df_news)}건 수집 및 AI 보고서 저장 완료",
+                "message": f"🎉 완료! 기사 {len(df_news)}건 수집(신규 {inserted}건), DB 및 보고서 저장 완료",
             })
 
         except Exception as e:
@@ -154,6 +176,51 @@ class NewsAppApi:
                 "error": str(e),
                 "message": f"작업 중 예외 발생: {str(e)}",
             })
+
+    # --------------------------------------------------------------------------
+    # 챗봇 대화 및 실시간 지시사항 API
+    # --------------------------------------------------------------------------
+    def send_chat(self, user_text: str) -> Dict[str, Any]:
+        """사용자의 맞춤 지시사항 및 질문을 접수하고 AI 비서 피드백 생성"""
+        text = user_text.strip() if user_text else ""
+        if not text:
+            return {"success": False, "error": "내용을 입력해주세요."}
+
+        try:
+            # 1. 사용자 메시지 DB 저장
+            self.db.add_chat_message("user", text)
+
+            # 2. AI 응답 생성
+            history = self.db.get_chat_history()
+            reply = self.reporter.chat_respond(
+                user_message=text,
+                chat_history=history[:-1],  # 방금 추가된 마지막 메시지 이전 히스토리
+                current_article_count=len(self.articles),
+            )
+
+            # 3. AI 응답 DB 저장
+            self.db.add_chat_message("assistant", reply)
+
+            return {
+                "success": True,
+                "reply": reply,
+                "history": self.db.get_chat_history(),
+            }
+        except Exception as e:
+            return {"success": False, "error": f"AI 비서 응답 실패: {str(e)}"}
+
+    def get_chat_history(self) -> Dict[str, Any]:
+        """대화 히스토리 목록 반환"""
+        return {"success": True, "history": self.db.get_chat_history()}
+
+    def clear_chat_history(self) -> Dict[str, bool]:
+        """대화 히스토리 초기화"""
+        self.db.clear_chat_history()
+        return {"success": True}
+
+    def get_db_stats(self) -> Dict[str, Any]:
+        """데이터베이스 누적 통계 반환"""
+        return self.db.get_stats()
 
     def get_status(self) -> Dict[str, Any]:
         """프론트엔드 진행 상황 폴링"""
@@ -166,6 +233,7 @@ class NewsAppApi:
             "csv_path": self.last_csv_path,
             "report": self.last_report,
             "period": f"{self.start_date_str} ~ {self.end_date_str}" if self.start_date_str != self.end_date_str else self.start_date_str,
+            "db_stats": self.db.get_stats(),
         }
 
     def open_folder(self, folder_type: str) -> Dict[str, Any]:
