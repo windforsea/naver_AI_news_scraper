@@ -1,20 +1,41 @@
-﻿/* 모던 IT/과학 뉴스 대시보드 및 AI 비서 챗봇 스타일 (style.css) */
+/* ==========================================================================
+   Sapphire Liquid Glass Edition (Apple iOS & Glassmorphism Aesthetic)
+   ========================================================================== */
 
 :root {
-  --bg-color: #0f172a;
-  --panel-bg: #1e293b;
-  --card-bg: #334155;
-  --border-color: #334155;
-  --border-light: #475569;
-  --primary: #3b82f6;
-  --primary-hover: #2563eb;
-  --text-main: #f8fafc;
-  --text-sub: #94a3b8;
-  --accent-green: #10b981;
-  --accent-red: #ef4444;
-  --accent-purple: #8b5cf6;
-  --radius: 10px;
-  --shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  --font-main: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Plus Jakarta Sans", "Pretendard", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  /* 사파이어 글래스 테마 변수 */
+  --bg-deep: #060d1f;
+  --glass-bg: rgba(9, 20, 48, 0.62);
+  --glass-card-bg: rgba(12, 26, 62, 0.52);
+  --glass-inner-bg: rgba(15, 31, 72, 0.65);
+  
+  --glass-border: rgba(186, 230, 254, 0.22);
+  --glass-border-top: rgba(255, 255, 255, 0.5);
+  --glass-border-hover: rgba(186, 230, 254, 0.45);
+  
+  --glass-shadow: inset 0 1.5px 2px rgba(255, 255, 255, 0.35),
+                  inset 0 -1.5px 2px rgba(0, 0, 0, 0.3),
+                  0 20px 45px -10px rgba(2, 6, 23, 0.65),
+                  0 0 30px rgba(14, 165, 233, 0.12);
+                  
+  --droplet-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.6),
+                    inset 0 -1.5px 2px rgba(0, 0, 0, 0.2),
+                    0 4px 12px rgba(0, 0, 0, 0.2);
+
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.9);
+  --text-muted: #94a3b8;
+  --accent-aqua: #38bdf8;
+  --accent-sapphire: #2563eb;
+  --accent-purple: #c084fc;
+
+  --radius-pill: 9999px;
+  --radius-card: 16px;
+  --radius-sub: 10px;
 }
 
 * {
@@ -24,14 +45,101 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Pretendard", "Noto Sans KR", sans-serif;
-  background-color: var(--bg-color);
-  color: var(--text-main);
+  font-family: var(--font-main);
+  background-color: var(--bg-deep);
+  color: var(--text-primary);
   line-height: 1.5;
-  overflow-x: hidden;
+  overflow: hidden;
+  height: 100vh;
+}
+
+/* ==========================================================================
+   1. 앰비언트 블루 사파이어 라이트 오브 배경 (Liquid Light Refraction)
+   ========================================================================== */
+.background-container {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  overflow: hidden;
+  background-color: #060d1f;
+  background-image: 
+    radial-gradient(circle at 18% 22%, rgba(14, 165, 233, 0.25) 0%, transparent 45%),
+    radial-gradient(circle at 82% 78%, rgba(29, 78, 216, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 50% 45%, rgba(2, 132, 199, 0.16) 0%, transparent 60%),
+    linear-gradient(145deg, #060d1e 0%, #0a1733 45%, #071025 100%);
+}
+
+.sapphire-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(85px);
+  pointer-events: none;
+  opacity: 0.75;
+  animation: sapphireFloat 18s ease-in-out infinite alternate;
+}
+
+.sapphire-orb-1 {
+  width: 520px;
+  height: 520px;
+  top: -80px;
+  left: 6%;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.38) 0%, rgba(2, 132, 199, 0.08) 65%, transparent 100%);
+}
+
+.sapphire-orb-2 {
+  width: 650px;
+  height: 650px;
+  bottom: -100px;
+  right: 4%;
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.42) 0%, rgba(30, 58, 138, 0.1) 70%, transparent 100%);
+  animation-duration: 24s;
+  animation-direction: alternate-reverse;
+}
+
+.sapphire-orb-3 {
+  width: 440px;
+  height: 440px;
+  top: 32%;
+  left: 42%;
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.22) 0%, transparent 75%);
+  animation-duration: 16s;
+}
+
+@keyframes sapphireFloat {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(32px, -24px) scale(1.06); }
+  100% { transform: translate(-24px, 22px) scale(0.95); }
+}
+
+.background-overlay {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 30%, rgba(255, 255, 255, 0.015) 0%, rgba(6, 12, 26, 0.28) 100%);
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   2. 사파이어 글래스 패널 공통 (Glassmorphism Core)
+   ========================================================================== */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--radius-card);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.glass-panel:hover {
+  border-color: var(--glass-border-hover);
 }
 
 .app-container {
+  position: relative;
+  z-index: 10;
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -39,80 +147,113 @@ body {
   gap: 12px;
 }
 
-/* 1. 상단 헤더 */
+/* ==========================================================================
+   3. 사파이어 상단 헤더
+   ========================================================================== */
 .app-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 16px;
-  background-color: var(--panel-bg);
-  border-radius: var(--radius);
-  border: 1px solid var(--border-color);
+  padding: 10px 18px;
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
-.brand-icon {
-  font-size: 26px;
+.brand-gem {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, rgba(56, 189, 248, 0.4), rgba(2, 132, 199, 0.1));
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: var(--droplet-shadow), 0 0 16px rgba(56, 189, 248, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .brand-text h1 {
-  font-size: 17px;
+  font-family: var(--font-display);
+  font-size: 16px;
   font-weight: 700;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.3px;
+  background: linear-gradient(135deg, #ffffff 30%, #bae6fd 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.edition-badge {
+  font-size: 9.5px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.3), rgba(37, 99, 235, 0.3));
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  color: #7dd3fc;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
 }
 
 .brand-text p {
   font-size: 11px;
-  color: var(--text-sub);
+  color: var(--text-muted);
 }
 
 .header-badges {
   display: flex;
-  gap: 8px;
+  gap: 7px;
 }
 
 .badge {
-  font-size: 11px;
-  padding: 4px 9px;
-  border-radius: 20px;
+  font-size: 10.5px;
   font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
-.badge.primary {
-  background-color: rgba(59, 130, 246, 0.2);
-  color: #60a5fa;
-  border: 1px solid rgba(59, 130, 246, 0.4);
+.badge.sapphire {
+  background: rgba(37, 99, 235, 0.25);
+  color: #93c5fd;
+  border: 1px solid rgba(96, 165, 250, 0.45);
+  box-shadow: 0 0 12px rgba(37, 99, 235, 0.25);
 }
 
-.badge.secondary {
-  background-color: rgba(16, 185, 129, 0.2);
-  color: #34d399;
-  border: 1px solid rgba(16, 185, 129, 0.4);
+.badge.aqua {
+  background: rgba(14, 165, 233, 0.22);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.45);
 }
 
-.badge.success {
-  background-color: rgba(139, 92, 246, 0.2);
-  color: #c084fc;
-  border: 1px solid rgba(139, 92, 246, 0.4);
+.badge.purple {
+  background: rgba(147, 51, 234, 0.22);
+  color: #d8b4fe;
+  border: 1px solid rgba(192, 132, 252, 0.45);
 }
 
-.badge.info {
-  background-color: rgba(148, 163, 184, 0.2);
+.badge.glass {
+  background: rgba(255, 255, 255, 0.08);
   color: #cbd5e1;
-  border: 1px solid rgba(148, 163, 184, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-/* 2. 컨트롤 패널 */
+/* ==========================================================================
+   4. 사파이어 글래스 컨트롤 패널
+   ========================================================================== */
 .control-panel {
-  background-color: var(--panel-bg);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  padding: 12px 16px;
+  padding: 11px 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -134,13 +275,13 @@ body {
 .form-group label {
   font-size: 11px;
   font-weight: 600;
-  color: var(--text-sub);
+  color: #bae6fd;
 }
 
 .label-tip {
   font-size: 10px;
   font-weight: normal;
-  color: #64748b;
+  color: #94a3b8;
 }
 
 .input-with-icon {
@@ -161,97 +302,74 @@ body {
   font-size: 13px;
 }
 
+.glass-input {
+  background: var(--glass-inner-bg);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+  padding: 8px 11px;
+  border-radius: var(--radius-sub);
+  font-size: 12px;
+  outline: none;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+  transition: all 0.25s ease;
+}
+
+.glass-input:focus {
+  border-color: #38bdf8;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3), 0 0 12px rgba(56, 189, 248, 0.4);
+}
+
 .category-display-box {
-  background-color: var(--card-bg);
-  border: 1px solid var(--border-light);
-  padding: 7px 10px;
-  border-radius: 6px;
+  background: var(--glass-inner-bg);
+  border: 1px solid var(--glass-border);
+  padding: 7px 11px;
+  border-radius: var(--radius-sub);
   display: flex;
   align-items: center;
 }
 
 .category-tag {
   color: #38bdf8;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
 }
 
-input[type="text"], select {
-  background-color: var(--card-bg);
-  border: 1px solid var(--border-light);
-  color: var(--text-main);
-  padding: 8px 10px;
-  border-radius: 6px;
+/* 사파이어 글로우 메인 버튼 */
+.sapphire-glow-btn {
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 50%, #1d4ed8 100%);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: inset 0 1.5px 2px rgba(255, 255, 255, 0.5),
+              0 4px 18px rgba(37, 99, 235, 0.55),
+              0 0 12px rgba(56, 189, 248, 0.3);
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
   font-size: 12px;
-  outline: none;
-  transition: border-color 0.2s;
-}
-
-input[type="text"]:focus, select:focus {
-  border-color: var(--primary);
-}
-
-/* 버튼 */
-.btn {
+  font-weight: 700;
+  cursor: pointer;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 14px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  border: none;
-  transition: background-color 0.2s, transform 0.1s;
+  gap: 7px;
+  transition: all 0.25s ease;
 }
 
-.btn:active {
-  transform: scale(0.98);
+.sapphire-glow-btn:hover {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: inset 0 1.5px 2px rgba(255, 255, 255, 0.7),
+              0 6px 24px rgba(37, 99, 235, 0.7),
+              0 0 18px rgba(56, 189, 248, 0.5);
 }
 
-.primary-btn {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
-  color: white;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
-}
-
-.primary-btn:hover {
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-}
-
-.primary-btn:disabled {
-  background: #475569;
-  cursor: not-allowed;
+.sapphire-glow-btn:disabled {
+  background: #334155;
   box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
 }
 
-.small-btn {
-  background-color: var(--card-bg);
-  color: var(--text-main);
-  border: 1px solid var(--border-light);
-  padding: 4px 8px;
-  font-size: 11px;
-}
-
-.small-btn:hover {
-  background-color: var(--border-light);
-}
-
-.icon-btn {
-  background: transparent;
-  border: none;
-  font-size: 14px;
-  cursor: pointer;
-  padding: 2px 5px;
-  border-radius: 4px;
-}
-
-.icon-btn:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-}
-
-/* 프로그레스 바 */
+/* ==========================================================================
+   5. 프로그레스 바
+   ========================================================================== */
 .progress-wrap {
   display: flex;
   flex-direction: column;
@@ -266,42 +384,43 @@ input[type="text"]:focus, select:focus {
 }
 
 .progress-msg {
-  color: #60a5fa;
-  font-weight: 500;
+  color: #38bdf8;
+  font-weight: 600;
 }
 
 .progress-pct {
-  color: var(--text-sub);
-  font-weight: 600;
+  color: #93c5fd;
+  font-weight: 700;
 }
 
 .progress-bar-bg {
   width: 100%;
   height: 5px;
-  background-color: var(--card-bg);
-  border-radius: 3px;
+  background: rgba(15, 28, 60, 0.8);
+  border-radius: var(--radius-pill);
   overflow: hidden;
+  border: 1px solid rgba(56, 189, 248, 0.2);
 }
 
 .progress-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+  background: linear-gradient(90deg, #0284c7, #38bdf8, #60a5fa);
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.7);
   transition: width 0.3s ease;
 }
 
-/* 3. 메인 3열 레이아웃 (수집목록 1fr : 보고서 1.25fr : AI챗봇 0.95fr) */
+/* ==========================================================================
+   6. 메인 3열 워크스페이스
+   ========================================================================== */
 .dashboard-main-3col {
   display: grid;
-  grid-template-columns: 1fr 1.2fr 0.9fr;
+  grid-template-columns: 1fr 1.25fr 0.95fr;
   gap: 12px;
   flex: 1;
   min-height: 0;
 }
 
 .panel {
-  background-color: var(--panel-bg);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -312,8 +431,8 @@ input[type="text"]:focus, select:focus {
   justify-content: space-between;
   align-items: center;
   padding: 10px 14px;
-  border-bottom: 1px solid var(--border-color);
-  background-color: rgba(30, 41, 59, 0.8);
+  border-bottom: 1px solid var(--glass-border);
+  background: rgba(12, 26, 62, 0.4);
 }
 
 .panel-title-box {
@@ -329,29 +448,79 @@ input[type="text"]:focus, select:focus {
 .panel-header h2 {
   font-size: 13px;
   font-weight: 700;
+  color: #f1f5f9;
 }
 
 .count-badge {
-  background-color: rgba(59, 130, 246, 0.2);
-  color: #60a5fa;
+  background: rgba(56, 189, 248, 0.2);
+  color: #38bdf8;
   font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 12px;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
   font-weight: 600;
+  border: 1px solid rgba(56, 189, 248, 0.4);
 }
 
-.sidebar-status-tag {
-  background-color: rgba(139, 92, 246, 0.2);
-  color: #c084fc;
+.mode-tag {
   font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-weight: 500;
+  padding: 2px 9px;
+  border-radius: var(--radius-pill);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(8px);
+}
+
+.mode-tag.standard, .mode-tag:not(.custom) {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+}
+
+.mode-tag.custom {
+  background: rgba(168, 85, 247, 0.22);
+  color: #e9d5ff;
+  border: 1px solid rgba(192, 132, 252, 0.5);
+  box-shadow: 0 0 14px rgba(192, 132, 252, 0.35);
 }
 
 .panel-actions {
   display: flex;
   gap: 5px;
+}
+
+.glass-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--text-primary);
+  border-radius: var(--radius-sub);
+  padding: 4px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.glass-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+}
+
+.icon-btn {
+  background: transparent;
+  border: none;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: var(--radius-sub);
+  color: var(--text-muted);
+  transition: background-color 0.2s;
+}
+
+.icon-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
 }
 
 /* 좌측 통계 요약 카드 */
@@ -360,8 +529,8 @@ input[type="text"]:focus, select:focus {
   grid-template-columns: 1fr 1.3fr;
   gap: 6px;
   padding: 8px 12px;
-  background-color: rgba(15, 23, 42, 0.4);
-  border-bottom: 1px solid var(--border-color);
+  background: rgba(6, 15, 36, 0.4);
+  border-bottom: 1px solid var(--glass-border);
 }
 
 .stat-card {
@@ -372,13 +541,13 @@ input[type="text"]:focus, select:focus {
 
 .stat-label {
   font-size: 10px;
-  color: var(--text-sub);
+  color: var(--text-muted);
 }
 
 .stat-value {
   font-size: 11px;
   font-weight: 600;
-  color: var(--text-main);
+  color: #bae6fd;
 }
 
 .truncate {
@@ -397,59 +566,62 @@ input[type="text"]:focus, select:focus {
 .news-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11.5px;
+  font-size: 11px;
   text-align: left;
 }
 
 .news-table th {
-  background-color: var(--panel-bg);
+  background: rgba(10, 22, 50, 0.85);
   position: sticky;
   top: 0;
   z-index: 1;
   padding: 8px 10px;
-  color: var(--text-sub);
+  color: #94a3b8;
   font-weight: 600;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--glass-border);
 }
 
 .news-table td {
   padding: 8px 10px;
-  border-bottom: 1px solid rgba(51, 65, 85, 0.4);
-  color: #cbd5e1;
+  border-bottom: 1px solid rgba(186, 230, 254, 0.08);
+  color: #e2e8f0;
 }
 
 .news-table tr:hover td {
-  background-color: rgba(51, 65, 85, 0.3);
+  background: rgba(56, 189, 248, 0.06);
 }
 
 .empty-cell {
   text-align: center;
-  padding: 30px 12px !important;
-  color: var(--text-sub);
+  padding: 35px 12px !important;
+  color: var(--text-muted);
 }
 
 .table-link-btn {
   display: inline-block;
-  padding: 2px 6px;
-  background-color: rgba(59, 130, 246, 0.15);
-  color: #60a5fa;
-  border-radius: 4px;
+  padding: 2px 7px;
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  border-radius: var(--radius-pill);
   text-decoration: none;
   font-size: 10px;
-  font-weight: 500;
+  font-weight: 600;
+  transition: all 0.2s;
 }
 
 .table-link-btn:hover {
-  background-color: rgba(59, 130, 246, 0.3);
+  background: rgba(56, 189, 248, 0.3);
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
 }
 
 /* 중앙 보고서 뷰어 */
 .report-container {
   flex: 1;
   overflow-y: auto;
-  padding: 14px 18px;
+  padding: 16px 20px;
   min-height: 0;
-  background-color: #0b1120;
+  background: rgba(6, 13, 30, 0.5);
 }
 
 .report-empty {
@@ -459,19 +631,18 @@ input[type="text"]:focus, select:focus {
   justify-content: center;
   height: 100%;
   text-align: center;
-  color: var(--text-sub);
+  color: var(--text-muted);
   gap: 8px;
-  padding: 16px;
 }
 
-.empty-icon {
-  font-size: 34px;
-  opacity: 0.8;
+.empty-icon-box {
+  font-size: 32px;
+  filter: drop-shadow(0 0 12px rgba(56, 189, 248, 0.4));
 }
 
 .report-empty h3 {
   font-size: 15px;
-  color: var(--text-main);
+  color: var(--text-primary);
 }
 
 .report-empty p {
@@ -479,34 +650,37 @@ input[type="text"]:focus, select:focus {
   line-height: 1.6;
 }
 
+/* 마크다운 스타일 */
 .markdown-body {
-  color: #e2e8f0;
+  color: #f1f5f9;
   font-size: 13px;
-  line-height: 1.7;
+  line-height: 1.75;
 }
 
 .markdown-body h1 {
   font-size: 17px;
-  padding-bottom: 6px;
+  padding-bottom: 8px;
   margin-bottom: 12px;
-  border-bottom: 2px solid var(--border-color);
-  color: #93c5fd;
+  border-bottom: 1px solid var(--glass-border);
+  background: linear-gradient(135deg, #ffffff 40%, #7dd3fc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .markdown-body h2 {
   font-size: 14px;
   margin-top: 18px;
   margin-bottom: 8px;
-  color: #67e8f9;
-  border-left: 3px solid var(--primary);
-  padding-left: 7px;
+  color: #38bdf8;
+  border-left: 3px solid #0284c7;
+  padding-left: 8px;
 }
 
 .markdown-body h3 {
   font-size: 13px;
   margin-top: 12px;
   margin-bottom: 5px;
-  color: #f1f5f9;
+  color: #e0f2fe;
 }
 
 .markdown-body p {
@@ -525,12 +699,12 @@ input[type="text"]:focus, select:focus {
 .markdown-body hr {
   border: 0;
   height: 1px;
-  background-color: var(--border-color);
+  background: var(--glass-border);
   margin: 14px 0;
 }
 
 .markdown-body a {
-  color: #60a5fa;
+  color: #38bdf8;
   text-decoration: none;
 }
 
@@ -538,21 +712,52 @@ input[type="text"]:focus, select:focus {
   text-decoration: underline;
 }
 
-/* 4. 우측 AI 비서 챗봇 사이드바 */
-.chat-sidebar {
-  background-color: var(--panel-bg);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
+/* ==========================================================================
+   7. 우측 AI 비서 챗봇 사이드바 (사파이어 리퀴드 글래스)
+   ========================================================================== */
+.active-instruction-bar {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: rgba(14, 165, 233, 0.18);
+  border-bottom: 1px solid rgba(56, 189, 248, 0.35);
+  font-size: 11px;
+}
+
+.instruction-chip-label {
+  color: #7dd3fc;
+  font-weight: 600;
+}
+
+.instruction-chip-text {
+  color: #ffffff;
+  font-weight: 500;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.instruction-chip-remove {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0 4px;
+}
+
+.instruction-chip-remove:hover {
+  color: #f87171;
 }
 
 .chat-banner {
-  background-color: rgba(30, 58, 138, 0.25);
-  border-bottom: 1px solid rgba(59, 130, 246, 0.25);
+  background: rgba(2, 132, 199, 0.15);
+  border-bottom: 1px solid var(--glass-border);
   padding: 8px 12px;
-  font-size: 11px;
-  color: #93c5fd;
+  font-size: 10.5px;
+  color: #bae6fd;
   line-height: 1.5;
 }
 
@@ -564,6 +769,7 @@ input[type="text"]:focus, select:focus {
   flex-direction: column;
   gap: 10px;
   min-height: 0;
+  background: rgba(6, 14, 34, 0.3);
 }
 
 .msg {
@@ -582,27 +788,30 @@ input[type="text"]:focus, select:focus {
 
 .msg-bubble {
   padding: 8px 12px;
-  border-radius: 10px;
-  font-size: 12px;
-  line-height: 1.5;
+  border-radius: 12px;
+  font-size: 11.5px;
+  line-height: 1.55;
   word-break: break-word;
 }
 
 .msg.incoming .msg-bubble {
-  background-color: var(--card-bg);
+  background: var(--glass-inner-bg);
   color: #f1f5f9;
   border-bottom-left-radius: 2px;
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .msg.outgoing .msg-bubble {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  background: linear-gradient(135deg, #0284c7, #2563eb);
   color: white;
   border-bottom-right-radius: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
 }
 
 .msg-time {
-  font-size: 9.5px;
+  font-size: 9px;
   color: #64748b;
   margin-top: 3px;
   padding: 0 4px;
@@ -614,8 +823,8 @@ input[type="text"]:focus, select:focus {
 
 .chat-input-area {
   padding: 10px 12px;
-  border-top: 1px solid var(--border-color);
-  background-color: rgba(15, 23, 42, 0.4);
+  border-top: 1px solid var(--glass-border);
+  background: rgba(8, 18, 42, 0.5);
 }
 
 .chat-input-area form {
@@ -625,23 +834,44 @@ input[type="text"]:focus, select:focus {
 
 .chat-input-area input {
   flex: 1;
-  padding: 8px 10px;
-  font-size: 11.5px;
 }
 
-.chat-input-area button {
-  background-color: var(--primary);
-  border: none;
+.send-btn {
+  background: linear-gradient(135deg, #0284c7, #2563eb);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   color: white;
-  border-radius: 6px;
+  border-radius: var(--radius-sub);
   padding: 0 10px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background-color 0.2s;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+  transition: all 0.2s;
 }
 
-.chat-input-area button:hover {
-  background-color: var(--primary-hover);
+.send-btn:hover {
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.6);
+  transform: scale(1.04);
+}
+
+/* ==========================================================================
+   8. 커스텀 스크롤바 (사파이어 아쿠아 틴트)
+   ========================================================================== */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(56, 189, 248, 0.25);
+  border-radius: var(--radius-pill);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(56, 189, 248, 0.45);
 }

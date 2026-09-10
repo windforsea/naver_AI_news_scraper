@@ -3,55 +3,69 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>네이버 뉴스 IT/과학 AI 브리핑 시스템 & DB 아카이브</title>
+  <title>네이버 뉴스 [IT/과학] AI 브리핑 시스템 - Sapphire Glass Edition</title>
+  <!-- 폰트: Pretendard & Plus Jakarta Sans -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
   <!-- Flatpickr 모던 캘린더 CSS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_blue.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <!-- 앰비언트 블루 사파이어 라이트 오브 배경 -->
+  <div class="background-container">
+    <div class="sapphire-orb sapphire-orb-1"></div>
+    <div class="sapphire-orb sapphire-orb-2"></div>
+    <div class="sapphire-orb sapphire-orb-3"></div>
+    <div class="background-overlay"></div>
+  </div>
+
   <div class="app-container">
-    <!-- 상단 헤더 -->
-    <header class="app-header">
+    <!-- 1. 사파이어 글래스 헤더 -->
+    <header class="app-header glass-panel">
       <div class="brand">
-        <span class="brand-icon">🔬</span>
+        <div class="brand-gem">💎</div>
         <div class="brand-text">
-          <h1>네이버 뉴스 [IT/과학] AI 브리핑 시스템</h1>
+          <div class="title-row">
+            <h1>네이버 뉴스 [IT/과학] AI 브리핑 시스템</h1>
+            <span class="edition-badge">SAPPHIRE GLASS EDITION</span>
+          </div>
           <p>IT/과학(섹션 105) 전체 수집 &bull; SQLite DB 아카이브 &bull; gpt-5.6-luna 맞춤형 보고서</p>
         </div>
       </div>
       <div class="header-badges">
-        <span class="badge primary">gpt-5.6-luna</span>
-        <span class="badge secondary">IT/과학 (섹션 105)</span>
-        <span class="badge success" id="db-stat-badge">DB 누적: 0건</span>
-        <span class="badge info" id="app-status-badge">대기 중</span>
+        <span class="badge sapphire">gpt-5.6-luna</span>
+        <span class="badge aqua">IT/과학 (섹션 105)</span>
+        <span class="badge purple" id="db-stat-badge">DB 누적: 0건</span>
+        <span class="badge glass" id="app-status-badge">대기 중</span>
       </div>
     </header>
 
-    <!-- 컨트롤 패널 (날짜, 카테고리, 건수, 실행) -->
-    <section class="control-panel">
+    <!-- 2. 사파이어 글래스 컨트롤 패널 -->
+    <section class="control-panel glass-panel">
       <div class="control-grid">
-        <!-- 1. 달력 날짜 선택기 -->
+        <!-- 1) 달력 날짜 선택기 -->
         <div class="form-group date-group">
           <label for="date-range">📅 수집 일자 선택 <span class="label-tip">(단일일 또는 기간 클릭)</span></label>
           <div class="input-with-icon">
-            <input type="text" id="date-range" placeholder="달력에서 날짜를 선택하세요" readonly>
+            <input type="text" id="date-range" class="glass-input" placeholder="달력에서 날짜를 선택하세요" readonly>
             <span class="calendar-icon">🗓️</span>
           </div>
         </div>
 
-        <!-- 2. 수집 카테고리 -->
+        <!-- 2) 수집 카테고리 -->
         <div class="form-group category-group">
           <label>🌐 수집 카테고리</label>
-          <div class="category-display-box">
-            <span class="category-tag">네이버 뉴스 &gt; IT/과학 (전체)</span>
+          <div class="category-display-box glass-card-inner">
+            <span class="category-tag">네이버 뉴스 &gt; IT/과학 (섹션 105 전체)</span>
           </div>
         </div>
 
-        <!-- 3. 수집 건수 -->
+        <!-- 3) 수집 건수 -->
         <div class="form-group count-group">
           <label for="max-items">🎯 최대 수집 건수</label>
-          <select id="max-items">
+          <select id="max-items" class="glass-input">
             <option value="10">10건 (고속 테스트)</option>
             <option value="20" selected>20건 (권장)</option>
             <option value="30">30건 (심층 분석)</option>
@@ -60,9 +74,9 @@
           </select>
         </div>
 
-        <!-- 4. 원클릭 실행 버튼 -->
+        <!-- 4) 원클릭 실행 버튼 -->
         <div class="form-group action-group">
-          <button type="button" id="run-btn" class="btn primary-btn">
+          <button type="button" id="run-btn" class="btn sapphire-glow-btn">
             <span class="btn-icon">🚀</span>
             <span class="btn-text">수집 & AI 보고서 생성</span>
           </button>
@@ -81,10 +95,10 @@
       </div>
     </section>
 
-    <!-- 메인 대시보드 3열 워크스페이스 -->
+    <!-- 3. 메인 3열 사파이어 워크스페이스 -->
     <main class="dashboard-main-3col">
       <!-- 1열(좌): 수집된 뉴스 목록 및 테이블 -->
-      <section class="panel left-panel">
+      <section class="panel left-panel glass-panel">
         <div class="panel-header">
           <div class="panel-title-box">
             <span class="panel-icon">📰</span>
@@ -92,7 +106,7 @@
             <span class="count-badge" id="article-count-badge">0건</span>
           </div>
           <div class="panel-actions">
-            <button type="button" class="btn small-btn" id="open-data-btn" title="CSV 및 DB 폴더 열기">
+            <button type="button" class="btn glass-btn small-btn" id="open-data-btn" title="CSV 및 DB 폴더 열기">
               📁 데이터 폴더
             </button>
           </div>
@@ -109,7 +123,7 @@
           </div>
         </div>
 
-        <div class="table-container">
+        <div class="table-container custom-scrollbar">
           <table class="news-table" id="news-table">
             <thead>
               <tr>
@@ -129,54 +143,61 @@
       </section>
 
       <!-- 2열(중앙): AI 마크다운 보고서 뷰어 -->
-      <section class="panel center-panel">
+      <section class="panel center-panel glass-panel">
         <div class="panel-header">
           <div class="panel-title-box">
             <span class="panel-icon">📑</span>
             <h2>AI 테크 브리핑 보고서 (.md)</h2>
+            <span class="mode-tag" id="report-mode-tag">기본 브리핑</span>
           </div>
           <div class="panel-actions">
-            <button type="button" class="btn small-btn" id="copy-report-btn" title="마크다운 텍스트 복사">
+            <button type="button" class="btn glass-btn small-btn" id="copy-report-btn" title="마크다운 텍스트 복사">
               📋 복사
             </button>
-            <button type="button" class="btn small-btn" id="open-file-btn" title="보고서 파일 기본 뷰어로 열기">
+            <button type="button" class="btn glass-btn small-btn" id="open-file-btn" title="보고서 파일 기본 뷰어로 열기">
               📄 열기
             </button>
-            <button type="button" class="btn small-btn" id="open-reports-btn" title="보고서 폴더 열기">
+            <button type="button" class="btn glass-btn small-btn" id="open-reports-btn" title="보고서 폴더 열기">
               📁 폴더
             </button>
           </div>
         </div>
 
-        <div class="report-container" id="report-container">
+        <div class="report-container custom-scrollbar" id="report-container">
           <div class="report-empty" id="report-empty">
-            <div class="empty-icon">💡</div>
+            <div class="empty-icon-box">💎</div>
             <h3>생성된 AI 보고서가 없습니다</h3>
             <p>기사가 수집되면 우측 <b>AI 비서에게 지시한 사항</b>을 종합하여<br>
-            <b>[AI 긍정 / AI 부정 / 기타 과학기술]</b> 보고서를 이곳에 출력합니다.</p>
+            고급스러운 사파이어 마크다운 보고서를 이곳에 출력합니다.</p>
           </div>
           <div class="markdown-body" id="report-content" style="display: none;"></div>
         </div>
       </section>
 
       <!-- 3열(우): 사용자 맞춤 지시사항 AI 챗봇 사이드바 -->
-      <aside class="panel chat-sidebar">
+      <aside class="panel chat-sidebar glass-panel">
         <div class="panel-header">
           <div class="panel-title-box">
             <span class="panel-icon">🧑‍💼</span>
             <h2>AI 브리핑 비서</h2>
-            <span class="sidebar-status-tag">지시사항 반영 모드</span>
           </div>
           <div class="panel-actions">
-            <button type="button" class="icon-btn" id="clear-chat-btn" title="대화 초기화">🗑️</button>
+            <button type="button" class="icon-btn" id="clear-chat-btn" title="대화 및 지시사항 초기화">🗑️</button>
           </div>
+        </div>
+
+        <!-- 현재 활성화된 지시사항 칩 알림 바 -->
+        <div class="active-instruction-bar" id="active-instruction-bar" style="display: none;">
+          <span class="instruction-chip-label">📌 반영 대기 지시:</span>
+          <span class="instruction-chip-text" id="instruction-chip-text">-</span>
+          <button type="button" class="instruction-chip-remove" id="instruction-chip-remove" title="지시사항 해제">✕</button>
         </div>
 
         <div class="chat-banner">
-          💡 챗봇에게 <b>"보안 사고를 집중 조명해줘"</b>, <b>"스타트업 투자 관점에서 시사점을 써줘"</b> 등의 요청사항을 남기시면 보고서 생성 시 문서에 즉시 자동 반영됩니다.
+          💡 챗봇에게 <b>"보안 사고를 집중 조명해줘"</b>, <b>"스타트업 투자 관점에서 분석해줘"</b> 등을 남기시면 보고서 생성 시 문서에 즉시 자동 반영됩니다.
         </div>
 
-        <div class="chat-messages" id="chat-messages">
+        <div class="chat-messages custom-scrollbar" id="chat-messages">
           <div class="msg incoming">
             <div class="msg-bubble">
               안녕하세요! IT/과학 테크 브리핑 AI 비서입니다. 이번 보고서에서 <b>특별히 강조하고 싶은 분야, 특정 기업 이슈, 또는 시사점 분석 관점</b>이 있으시면 편하게 말씀해 주세요!
@@ -187,8 +208,8 @@
 
         <div class="chat-input-area">
           <form id="chat-form" autocomplete="off">
-            <input type="text" id="chat-input" placeholder="보고서 추가 요청/지시사항 입력..." required />
-            <button type="submit" id="chat-send-btn" title="전송">
+            <input type="text" id="chat-input" class="glass-input" placeholder="보고서 추가 요청/지시사항 입력..." required />
+            <button type="submit" id="chat-send-btn" class="send-btn" title="전송">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                 <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
               </svg>
