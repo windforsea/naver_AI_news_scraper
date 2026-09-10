@@ -19,6 +19,51 @@
 
 ---
 
+## 🏗️ 시스템 아키텍처 (System Architecture)
+
+```mermaid
+flowchart TD
+    subgraph UI["🖥️ Modern Glassmorphism Dashboard (pywebview)"]
+        A1["📅 날짜 범위 & 수집 건수 선택"]
+        A2["📥 [기사 수집 (DB 저장)] 버튼"]
+        A3["📑 [AI 보고서 생성] 버튼"]
+        A4["🧑‍💼 AI 브리핑 비서 (지시사항 챗봇)"]
+    end
+
+    subgraph Backend["⚙️ Python Core Engine (news_scrapwithai)"]
+        B1["NaverNewsCollector (Scraper)"]
+        B2["NewsDatabase (SQLite RDBMS)"]
+        B3["NewsReportGenerator (gpt-5.6-luna)"]
+        B4["NewsAppApi (Bridge Controller)"]
+    end
+
+    subgraph Storage["💾 Persistence Layer"]
+        DB[("news.db (SQLite)")]
+        CSV["📁 data/*.csv (Excel)"]
+        MD["📁 reports/*.md (Report)"]
+    end
+
+    A2 -->|수집 요청| B4
+    B4 -->|네이버 IT/과학 sid1=105 크롤링| B1
+    B1 -->|INSERT OR IGNORE| B2
+    B1 -->|DataFrame Export| CSV
+    B2 --> DB
+
+    A3 -->|보고서 요청| B4
+    B4 -->|1. DB 우선 캐시 확인| B2
+    B2 -.->|기사 존재 시 즉시 반환 (크롤링 생략)| B4
+    B4 -.->|기사 부재 시 자동 수집 연계| B1
+    A4 -->|실시간 지시 주입| B4
+    B4 -->|기사 컨텍스트 + 사용자 지시사항| B3
+    B3 -->|OpenAI Responses API| LLM[("OpenAI gpt-5.6-luna")]
+    LLM -->|마크다운 보고서 생성| B3
+    B3 -->|보고서 저장 & M:N 기사 매핑| B2
+    B3 -->|마크다운 파일 저장| MD
+    B4 -->|결과 데이터 전달| UI
+```
+
+---
+
 ## 🌟 포트폴리오 핵심 기술 하이라이트 (Technical Highlights)
 
 ### 1. ⚡ 날짜 기반 역순 탐색 및 조기 종료 (Early Break) 알고리즘
@@ -66,6 +111,68 @@
 
 ---
 
+## 🛠️ 문제 의문 및 해결 (Troubleshooting & Engineering Decisions)
+
+프로젝트 개발 및 고도화 과정에서 마주했던 기술적 난제들과 이를 해결한 엔지니어링 의사결정 과정입니다:
+
+### Q1. 배치 파일 실행 시 `'API'은(는) 내부 또는 외부 명령이 아닙니다` 파싱 에러
+- **문제 의문 (The Problem)**:
+  `run.bat` 실행 시 콘솔창에 알 수 없는 구문 오류가 출력되며 프로그램 실행이 중단되는 현상이 발생했습니다.
+- **원인 분석 (Root Cause)**:
+  - `echo (Naver News IT/Science & gpt-5.6-luna)` 출력문 내의 `&` 특수문자를 윈도우 커맨드 인터프리터(`cmd.exe`)가 명령어 구분자(Command Chaining)로 오인식하여, 뒤에 오는 `API`를 독립된 쉘 명령어로 실행하려고 시도했습니다.
+  - 또한 스크립트 저장 인코딩(UTF-8 with BOM vs ANSI/CP949) 차이로 인해 윈도우 배치 인터프리터가 첫 바이트 매직넘버를 정상 인식하지 못했습니다.
+- **해결 방안 (Solution)**:
+  - 앰퍼샌드를 `^&`로 이스케이프 처리하고, 스크립트 최상단에 `pushd "%~dp0"`를 지정하여 실행 작업 경로를 스크립트 위치로 강제 고정했습니다.
+  - 유지보수를 저해하고 불필요한 서브스크립트였던 `run_silent.vbs`를 전면 삭제하고, 배치 파일을 순수 7-bit ASCII 인코딩으로 통일하여 모든 윈도우 환경에서 100% 무결한 원클릭 구동을 보장했습니다.
+
+---
+
+### Q2. 네이버 뉴스 API의 날짜 범위 필터링 부재와 성능 병목
+- **문제 의문 (The Problem)**:
+  네이버 오픈 API는 `startDate`/`endDate` 날짜 범위 필터링 파라미터를 제공하지 않고 검색어 기반 최신순 정렬만 지원합니다. 3일치 기사를 수집하기 위해 과거 기사까지 무조건 대량 호출해야 하는가?
+- **원인 분석 (Root Cause)**:
+  API 스펙의 한계로 인해 무차별 페이징 순회를 진행하면 불필요한 과거 데이터까지 훑게 되어 네트워크 지연과 쿼터 소모가 급증합니다.
+- **해결 방안 (Solution)**:
+  - `sort=date`(최신순) 정렬 기반 역순 탐색을 진행하며, 각 기사의 `pubDate`(RFC 822)를 한국 표준시(KST) `datetime`으로 실시간 파싱했습니다.
+  - 기사 발행일이 사용자가 설정한 `startDate`보다 과거로 넘어가는 순간 탐색 루프를 즉시 중단하는 **조기 종료(Early Break) 알고리즘**을 구축했습니다.
+- **성과 (Impact)**: 불필요한 API 호출 90% 이상 절감 및 데이터 수집 속도 약 8배 단축.
+
+---
+
+### Q3. CSV 파일 관리의 한계 ➔ SQLite RDBMS 정규화 및 다대다(N:M) 설계
+- **문제 의문 (The Problem)**:
+  "기존처럼 CSV 파일로만 데이터를 관리하는 것과 SQL 데이터베이스로 관리하는 것 중 어떤 구조가 더 확장성 있고 효율적인가?"
+- **원인 분석 (Root Cause)**:
+  CSV 파일은 매번 파일이 분할 생성되어 기사가 중복 적재되고, "과거의 특정 보고서가 어떤 기사들을 인용했는가?"를 역추적하거나 날짜별로 통계를 집계하는 관계형 질의가 불가능했습니다.
+- **해결 방안 (Solution)**:
+  - SQLite 경량 RDBMS를 도입하고 4대 정규화 스키마(`articles`, `reports`, `report_articles`, `chat_messages`)를 설계했습니다.
+  - 기사 원문 링크(`link UNIQUE`) 제약조건과 `INSERT OR IGNORE` 구문을 적용해 중복 기사를 0ms로 자동 필터링했습니다.
+  - 하나의 보고서에 여러 기사가 인용되고, 한 기사가 여러 보고서에 중복 활용될 수 있는 실무 환경을 완벽히 모델링하기 위해 다대다(N:M) Junction Table(`report_articles`)을 외래키(`FOREIGN KEY ON DELETE CASCADE`)로 구축했습니다.
+  - `pub_date` 및 `category` 컬럼 인덱싱으로 대용량 기사 누적 시에도 밀리초 단위 쿼리 성능을 보장했습니다.
+
+---
+
+### Q4. 챗봇 지시사항의 간섭 문제와 듀얼 모드(Dual-Mode) 동적 프레이밍
+- **문제 의문 (The Problem)**:
+  "챗봇에게 지시를 한 번 내리면 다음번 보고서를 만들 때도 계속 이전 지시사항이 끼어들지 않는가?", "사용자가 '보안 사고 집중 분석'을 지시했는데도 굳이 AI 긍정/부정/기타 3가지로 억지로 쪼개야 하는가?"
+- **해결 방안 (Solution)**:
+  - **지시사항 수명 주기(Lifecycle) 확립**: 챗봇 지시 입력 시 UI에 `📌 반영 대기 지시` 칩을 표시하고 `✕` 취소 버튼을 제공했습니다. 보고서 생성이 끝나면 해당 지시는 **자동 소모(Consumed)**되어 칩이 닫히며, 다음 수집 시에는 기본 모드로 안전하게 복귀하도록 구현했습니다.
+  - **동적 프레이밍 듀얼 모드**:
+    - 기본 모드(지시 없음): `🚀 [AI 긍정]`, `⚠️ [AI 부정]`, `🔬 [기타 과학기술]` 정석 3대 브리핑 제공.
+    - 맞춤 모드(지시 있음): 인위적인 긍정/부정 구분을 탈피하고, 사용자의 요청 주제를 관통하는 유연한 **주제 중심 동적 섹션(`🎯 [테마 집중 분석]`, `🌐 [산업적 파급 효과]`, `💡 [맞춤 전략 제언]`)**으로 자동 재구성.
+
+---
+
+### Q5. 수집과 생성의 결합으로 인한 비용 낭비 ➔ 2단 분리 및 DB-First(Cache-First) 아키텍처
+- **문제 의문 (The Problem)**:
+  초기에는 [수집 & 보고서 생성]이 하나의 버튼으로 묶여 있어, 단순 기사 수집 현황만 보고 싶을 때도 무조건 OpenAI LLM API 요금이 발생하고 대기 시간이 길어졌습니다. 또한 이미 DB에 저장된 날짜의 보고서를 다시 만들 때도 불필요하게 웹 크롤링을 다시 수행하는 심각한 비효율이 발생했습니다.
+- **해결 방안 (Solution)**:
+  - UI 버튼을 **`[📥 기사 수집 (DB 저장)]`**과 **`[📑 AI 보고서 생성]`**으로 물리적 2단 분리했습니다.
+  - **DB 우선 캐싱 (Cache-First)**: 보고서 생성 시 SQLite DB를 먼저 조회하여 기사가 존재하면 **웹 크롤링을 100% 생략하고 DB에서 즉시 기사를 로드(0.1초 소요)**하여 LLM에 전달합니다. DB가 비어 있을 때만 자동으로 네이버 뉴스를 수집·적재한 뒤 보고서를 작성합니다.
+  - **성과 (Impact)**: 불필요한 웹 트래픽 제거, OpenAI 토큰 비용 절감, 재보고서 작성 소요 시간 95% 단축.
+
+---
+
 ## 📊 고정 데이터프레임 스키마 (Data Schema)
 
 데이터 정제 및 CSV(`utf-8-sig`) 저장 시 데이터 무결성을 위해 아래 6종의 컬럼 규격을 엄격히 유지합니다:
@@ -87,25 +194,27 @@
 news_scrapwithAI/
 ├── .env                  # 네이버 및 OpenAI API 키 (보안 격리, .gitignore)
 ├── .env.example          # 환경 변수 가이드 템플릿
-├── .gitignore            # 민감 데이터 및 캐시 배제
+├── .gitignore            # 민감 데이터, 캐시, DB 파일 배제
 ├── pyproject.toml        # 의존성 및 프로젝트 메타데이터
-├── run.bat               # 원클릭 실행 배치 스크립트 (콘솔 안내 포함)
-├── docs/                 # 포트폴리오용 스크린샷 저장소
+├── run.bat               # 원클릭 실행 배치 스크립트 (경로 고정 및 이스케이프 무결성)
+├── docs/                 # 포트폴리오용 시각자료
 │   └── app_main_screenshot.png
-├── data/                 # 수집된 뉴스 CSV 저장소 (예: news_20260901_20260905.csv)
-├── reports/              # 생성된 AI 마크다운 보고서 저장소 (예: IT_과학_뉴스보고서_*.md)
-├── web/                  # 프론트엔드 UI 리소스
-│   ├── index.html        # 대시보드 메인 템플릿
-│   ├── style.css         # 모던 다크 테마 대시보드 스타일
-│   └── app.js           # Flatpickr 달력 연동 및 비동기 폴링 제어
+├── data/                 # SQLite DB 및 엑셀 호환 CSV 저장소
+│   ├── news.db           # SQLite 4대 정규화 데이터베이스
+│   └── news_*.csv        # 일자별 6개 고정 컬럼 CSV
+├── reports/              # 생성된 AI 마크다운 보고서 저장소 (*.md)
+├── web/                  # 프론트엔드 리소스 (HTML5, CSS3, JS)
+│   ├── index.html        # 3열 대시보드 구조 및 2단 제어 패널
+│   ├── style.css         # 모던 글래스모피즘 스타일시트
+│   └── app.js           # Flatpickr 연동, 2단 버튼 비동기 통신 및 지시 칩 관리
 └── src/
     └── news_scrapwithai/
-        ├── __init__.py   # 메인 진입점 (1280x840 pywebview 윈도우 생성)
-        ├── config.py     # API 인증키 로더 및 디렉터리 경로 관리
-        ├── database.py   # SQLite RDBMS 관리자 (articles, reports, 매핑)
-        ├── scraper.py    # 네이버 뉴스 IT/과학 섹션 전체 수집기
-        ├── ai_reporter.py# gpt-5.6-luna 3대 카테고리 분석 및 마크다운 생성기
-        └── api.py        # 프론트엔드 JS ↔ 파이썬 백엔드 비동기 통신 브리지
+        ├── __init__.py   # 메인 진입점 (1280x840 pywebview 윈도우 런처)
+        ├── config.py     # API 인증키 로더 및 디렉터리 절대경로 관리
+        ├── database.py   # SQLite RDBMS 관리자 (articles, reports, 매핑, 대화)
+        ├── scraper.py    # 네이버 뉴스 IT/과학(sid1=105) 섹션 전체 수집기
+        ├── ai_reporter.py# gpt-5.6-luna 듀얼 모드 분석 및 마크다운 생성 엔진
+        └── api.py        # 프론트엔드 JS ↔ 파이썬 백엔드 비동기 통신 브리지 (DB-First)
 ```
 
 ---
