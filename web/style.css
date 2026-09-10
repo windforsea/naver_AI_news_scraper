@@ -530,6 +530,29 @@ body {
   gap: 5px;
 }
 
+.glass-select {
+  background: rgba(10, 24, 56, 0.85);
+  border: 1px solid rgba(186, 230, 254, 0.25);
+  color: #bae6fd;
+  border-radius: var(--radius-sub);
+  padding: 3px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  outline: none;
+  max-width: 165px;
+  transition: all 0.2s ease;
+}
+
+.glass-select:hover, .glass-select:focus {
+  border-color: rgba(56, 189, 248, 0.5);
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+}
+
+.glass-select option {
+  background: #091430;
+  color: #ffffff;
+}
+
 .glass-btn {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.2);

@@ -183,6 +183,58 @@ class NewsDatabase:
             conn.commit()
             return report_id or 0
 
+    def get_latest_report(self) -> Optional[Dict[str, Any]]:
+        """가장 최근에 생성된 보고서 1건 조회"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, title, period, article_count, user_instructions, report_md, file_path, created_at
+                FROM reports
+                ORDER BY id DESC
+                LIMIT 1;
+            """)
+            row = cursor.fetchone()
+            return dict(row) if row else None
+
+    def get_reports_list(self, limit: int = 30) -> List[Dict[str, Any]]:
+        """저장된 보고서 이력 목록 반환 (최신순)"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, title, period, article_count, user_instructions, file_path, created_at
+                FROM reports
+                ORDER BY id DESC
+                LIMIT ?;
+            """, (limit,))
+            rows = cursor.fetchall()
+            return [dict(r) for r in rows]
+
+    def get_report_by_id(self, report_id: int) -> Optional[Dict[str, Any]]:
+        """특정 ID의 보고서 상세(마크다운 본문 포함) 조회"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, title, period, article_count, user_instructions, report_md, file_path, created_at
+                FROM reports
+                WHERE id = ?;
+            """, (report_id,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+
+    def get_articles_by_report_id(self, report_id: int) -> List[Dict[str, Any]]:
+        """특정 보고서에 인용/연결된 기사 목록 조회 (N:M Junction table 활용)"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT a.id, a.title, a.content, a.link, a.originallink, a.pub_date as pubDate, a.press, a.category
+                FROM articles a
+                JOIN report_articles ra ON a.id = ra.article_id
+                WHERE ra.report_id = ?
+                ORDER BY a.pub_date DESC, a.id DESC;
+            """, (report_id,))
+            rows = cursor.fetchall()
+            return [dict(r) for r in rows]
+
     def add_chat_message(self, role: str, content: str) -> None:
         """챗봇 대화 메시지 기록"""
         with self._get_connection() as conn:

@@ -377,12 +377,140 @@ class NewsAppApi:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    def open_file(self, file_path: str) -> Dict[str, Any]:
-        """특정 파일 시스템 열기"""
-        try:
-            if os.name == "nt" and os.path.exists(file_path):
-                os.startfile(file_path)
-                return {"success": True}
-            return {"success": False, "error": "파일을 찾을 수 없습니다."}
-        except Exception as e:
-            return {"success": False, "error": str(e)}
+    def get_latest_report(self) -> Dict[str, Any]:
+        """가장 최근 보고서 및 연결된 기사들 조회 (앱 실행 시 자동 로드용)"""
+        report = self.db.get_latest_report()
+        articles = []
+        if report:
+            self.last_report = report
+            # 연결된 기사 목록 조회
+            articles = self.db.get_articles_by_report_id(report["id"])
+            if not articles and report.get("period"):
+                # 기간 기반으로 기사 조회 시도
+                period_parts = report["period"].split(" ~ ")
+                start_p = period_parts[0].strip()
+                end_p = period_parts[1].strip() if len(period_parts) > 1 else start_p
+                articles = self.db.get_articles_by_date_range(start_p, end_p, 50)
+            self.articles = articles
+            return {
+                "success": True,
+                "report": report,
+                "articles": articles,
+            }
+        else:
+            # DB에 없을 시 reports 폴더에서 최근 .md 파일 탐색 (폴더 파일 우선 호환)
+            md_files = sorted(REPORTS_DIR.glob("*.md"), key=os.path.getmtime, reverse=True)
+            if md_files:
+                latest_file = md_files[0]
+                try:
+                    with open(latest_file, "r", encoding="utf-8") as f:
+                        content = f.read()
+                    fallback_report = {
+                        "id": 0,
+                        "title": latest_file.stem,
+                        "period": "-",
+                        "article_count": 0,
+                        "user_instructions": "",
+                        "report_md": content,
+                        "file_path": str(latest_file),
+                        "created_at": datetime.fromtimestamp(os.path.getmtime(latest_file)).strftime("%Y-%m-%d %H:%M"),
+                    }
+                    self.last_report = fallback_report
+                    return {
+                        "success": True,
+                        "report": fallback_report,
+                        "articles": [],
+                    }
+                except Exception:
+                    pass
+
+        return {"success": False, "error": "저장된 보고서가 없습니다."}
+
+    def get_reports_list(self) -> Dict[str, Any]:
+        """저장된 보고서 히스토리 목록 조회"""
+        reports = self.db.get_reports_list(30)
+        # 폴더 내 .md 파일들도 동기화 반영
+        db_paths = {r.get("file_path") for r in reports if r.get("file_path")}
+        md_files = sorted(REPORTS_DIR.glob("*.md"), key=os.path.getmtime, reverse=True)
+        for f in md_files:
+            if str(f) not in db_paths:
+                reports.append({
+                    "id": -1,
+                    "title": f.stem,
+                    "period": "-",
+                    "article_count": 0,
+                    "user_instructions": "",
+                    "file_path": str(f),
+                    "created_at": datetime.fromtimestamp(os.path.getmtime(f)).strftime("%Y-%m-%d %H:%M"),
+                })
+
+        return {"success": True, "reports": reports}
+
+    def load_report(self, report_id: int, file_path: str = "") -> Dict[str, Any]:
+        """특정 보고서를 로드하여 화면에 표시"""
+        report = None
+        articles = []
+        if report_id > 0:
+            report = self.db.get_report_by_id(report_id)
+            if report:
+                articles = self.db.get_articles_by_report_id(report_id)
+                if not articles and report.get("period"):
+                    period_parts = report["period"].split(" ~ ")
+                    start_p = period_parts[0].strip()
+                    end_p = period_parts[1].strip() if len(period_parts) > 1 else start_p
+                    articles = self.db.get_articles_by_date_range(start_p, end_p, 50)
+        elif file_path and os.path.exists(file_path):
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                report = {
+                    "id": -1,
+                    "title": Path(file_path).stem,
+                    "period": "-",
+                    "article_count": 0,
+                    "user_instructions": "",
+                    "report_md": content,
+                    "file_path": file_path,
+                    "created_at": datetime.fromtimestamp(os.path.getmtime(file_path)).strftime("%Y-%m-%d %H:%M"),
+                }
+            except Exception as e:
+                return {"success": False, "error": f"파일 로드 실패: {e}"}
+
+        if report:
+            self.last_report = report
+            self.articles = articles
+            return {"success": True, "report": report, "articles": articles}
+
+        return {"success": False, "error": "보고서를 찾을 수 없습니다."}
+
+    def open_report_file(self, file_path: str = "") -> Dict[str, Any]:
+        """보고서 파일을 시스템 기본 프로그램(메모장/마크다운 뷰어 등)으로 열기"""
+        target_path = file_path
+        # 경로가 없거나 유효하지 않으면 현재/최근 보고서 파일 탐색
+        if not target_path or not os.path.exists(target_path):
+            if self.last_report and self.last_report.get("file_path") and os.path.exists(self.last_report["file_path"]):
+                target_path = self.last_report["file_path"]
+            else:
+                # DB에서 최신 보고서 파일 경로 확인
+                latest = self.db.get_latest_report()
+                if latest and latest.get("file_path") and os.path.exists(latest["file_path"]):
+                    target_path = latest["file_path"]
+                else:
+                    # reports 폴더에서 최신 .md 파일 탐색
+                    md_files = sorted(REPORTS_DIR.glob("*.md"), key=os.path.getmtime, reverse=True)
+                    if md_files:
+                        target_path = str(md_files[0])
+
+        if target_path and os.path.exists(target_path):
+            try:
+                if os.name == "nt":
+                    os.startfile(target_path)
+                return {"success": True, "file_path": target_path}
+            except Exception as e:
+                return {"success": False, "error": f"파일 실행 실패: {e}"}
+
+        return {"success": False, "error": "열 수 있는 보고서 파일이 폴더에 없습니다."}
+
+    def open_file(self, file_path: str = "") -> Dict[str, Any]:
+        """특정 파일 시스템 열기 (open_report_file 위임)"""
+        return self.open_report_file(file_path)

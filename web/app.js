@@ -30,6 +30,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const reportEmpty = document.getElementById("report-empty");
   const reportContent = document.getElementById("report-content");
   const reportModeTag = document.getElementById("report-mode-tag");
+  const reportHistorySelect = document.getElementById("report-history-select");
 
   const openDataBtn = document.getElementById("open-data-btn");
   const openReportsBtn = document.getElementById("open-reports-btn");
@@ -64,11 +65,13 @@ document.addEventListener("DOMContentLoaded", () => {
     showMonths: 1,
   });
 
-  // 3. 앱 초기화 (DB 통계 및 대화 히스토리 로드)
+  // 3. 앱 초기화 (DB 통계, 대화 히스토리, 이전 보고서 목록 및 최신 보고서 로드)
   setTimeout(async () => {
     if (window.pywebview && window.pywebview.api) {
       await refreshDbStats();
       await loadChatHistory();
+      await loadReportsHistoryList();
+      await loadLatestReportOnStartup();
     }
   }, 300);
 
@@ -106,6 +109,76 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (e) {
       console.warn("챗 히스토리 로드 실패:", e);
     }
+  }
+
+  // 이전 보고서 이력 목록 로드 (드롭다운)
+  async function loadReportsHistoryList() {
+    try {
+      if (window.pywebview && window.pywebview.api && reportHistorySelect) {
+        const res = await window.pywebview.api.get_reports_list();
+        if (res && res.success && res.reports && res.reports.length > 0) {
+          reportHistorySelect.innerHTML = `<option value="">📂 이전 보고서 목록 (${res.reports.length}건)...</option>`;
+          res.reports.forEach((rep) => {
+            const opt = document.createElement("option");
+            opt.value = rep.id > 0 ? `id:${rep.id}` : `file:${rep.file_path}`;
+            const timeLabel = rep.created_at ? ` [${rep.created_at}]` : "";
+            opt.textContent = `${rep.title || "보고서"}${timeLabel}`;
+            reportHistorySelect.appendChild(opt);
+          });
+        }
+      }
+    } catch (e) {
+      console.warn("보고서 목록 로드 실패:", e);
+    }
+  }
+
+  // 앱 시작 시 가장 최근 생성된 보고서 자동 렌더링
+  async function loadLatestReportOnStartup() {
+    try {
+      if (window.pywebview && window.pywebview.api) {
+        const res = await window.pywebview.api.get_latest_report();
+        if (res && res.success && res.report) {
+          currentReportData = res;
+          renderReport(res.report);
+          if (res.articles && res.articles.length > 0) {
+            renderArticles(res.articles, res.report.period || "-");
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("최신 보고서 자동 로드 실패:", e);
+    }
+  }
+
+  // 이전 보고서 드롭다운 선택 시 로드
+  if (reportHistorySelect) {
+    reportHistorySelect.addEventListener("change", async (e) => {
+      const val = e.target.value;
+      if (!val) return;
+
+      try {
+        let res = null;
+        if (val.startsWith("id:")) {
+          const repId = parseInt(val.replace("id:", ""), 10);
+          res = await window.pywebview.api.load_report(repId, "");
+        } else if (val.startsWith("file:")) {
+          const filePath = val.replace("file:", "");
+          res = await window.pywebview.api.load_report(0, filePath);
+        }
+
+        if (res && res.success && res.report) {
+          currentReportData = res;
+          renderReport(res.report);
+          if (res.articles && res.articles.length > 0) {
+            renderArticles(res.articles, res.report.period || "-");
+          }
+        } else {
+          alert("보고서 불러오기 실패: " + (res?.error || "알 수 없는 오류"));
+        }
+      } catch (err) {
+        alert("보고서 로드 오류: " + err.message);
+      }
+    });
   }
 
   // Helper: 날짜 선택 값 파싱
@@ -239,62 +312,76 @@ document.addEventListener("DOMContentLoaded", () => {
       const csvPath = data.csv_path || "";
       const period = data.period || "-";
 
-      articleCountBadge.textContent = `${articles.length}건`;
-      statPeriod.textContent = period;
-      statCsv.textContent = csvPath ? csvPath.split("\\").pop() : "-";
-      statCsv.title = csvPath;
-
       // 테이블 렌더링
-      if (articles.length === 0) {
-        newsTbody.innerHTML = `<tr><td colspan="4" class="empty-cell">지정된 기간 내 수집된 IT/과학 기사가 없습니다.</td></tr>`;
-      } else {
-        let rowsHtml = "";
-        articles.forEach((art, idx) => {
-          const title = art.title || "제목 없음";
-          const press = art.press || "-";
-          const link = art.link || art.originallink || "#";
-
-          rowsHtml += `
-            <tr>
-              <td>${idx + 1}</td>
-              <td title="${title}"><strong>${title}</strong></td>
-              <td>${press}</td>
-              <td>
-                <a href="${link}" target="_blank" class="table-link-btn" title="원문 보기">보기</a>
-              </td>
-            </tr>
-          `;
-        });
-        newsTbody.innerHTML = rowsHtml;
-      }
+      renderArticles(articles, period, csvPath);
 
       // 보고서 렌더링
       if (report && report.report_md) {
-        reportEmpty.style.display = "none";
-        reportContent.style.display = "block";
-        reportContent.innerHTML = marked.parse(report.report_md);
-
-        // 듀얼 모드 태그 표시
-        if (reportModeTag) {
-          if (report.report_mode === "custom") {
-            reportModeTag.textContent = "맞춤 테마 브리핑";
-            reportModeTag.className = "mode-tag custom";
-          } else {
-            reportModeTag.textContent = "기본 3대 브리핑";
-            reportModeTag.className = "mode-tag standard";
-          }
-        }
-
-        // 보고서 생성 완료 시 활성 지시 바 숨김 (소모됨)
+        renderReport(report);
         if (activeInstructionBar) {
           activeInstructionBar.style.display = "none";
         }
-      } else {
-        reportEmpty.style.display = "flex";
-        reportContent.style.display = "none";
       }
+
+      // 이전 보고서 드롭다운 목록 갱신
+      await loadReportsHistoryList();
     } catch (e) {
       console.error("결과 로드 실패:", e);
+    }
+  }
+
+  function renderReport(report) {
+    if (report && report.report_md) {
+      reportEmpty.style.display = "none";
+      reportContent.style.display = "block";
+      reportContent.innerHTML = marked.parse(report.report_md);
+
+      if (reportModeTag) {
+        const isCustom = (report.report_mode === "custom") || 
+                         (report.user_instructions && report.user_instructions !== "기본 표준 분석 (추가 지시 없음)" && !report.user_instructions.includes("표준"));
+        if (isCustom) {
+          reportModeTag.textContent = "맞춤 테마 브리핑";
+          reportModeTag.className = "mode-tag custom";
+        } else {
+          reportModeTag.textContent = "기본 3대 브리핑";
+          reportModeTag.className = "mode-tag standard";
+        }
+      }
+    } else {
+      reportEmpty.style.display = "flex";
+      reportContent.style.display = "none";
+    }
+  }
+
+  function renderArticles(articles = [], period = "-", csvPath = "") {
+    articleCountBadge.textContent = `${articles.length}건`;
+    if (period && period !== "-") statPeriod.textContent = period;
+    if (csvPath) {
+      statCsv.textContent = csvPath.split("\\").pop();
+      statCsv.title = csvPath;
+    }
+
+    if (articles.length === 0) {
+      newsTbody.innerHTML = `<tr><td colspan="4" class="empty-cell">지정된 기간 내 수집된 IT/과학 기사가 없습니다.</td></tr>`;
+    } else {
+      let rowsHtml = "";
+      articles.forEach((art, idx) => {
+        const title = art.title || "제목 없음";
+        const press = art.press || "-";
+        const link = art.link || art.originallink || "#";
+
+        rowsHtml += `
+          <tr>
+            <td>${idx + 1}</td>
+            <td title="${title}"><strong>${title}</strong></td>
+            <td>${press}</td>
+            <td>
+              <a href="${link}" target="_blank" class="table-link-btn" title="원문 보기">보기</a>
+            </td>
+          </tr>
+        `;
+      });
+      newsTbody.innerHTML = rowsHtml;
     }
   }
 
@@ -423,12 +510,18 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   openFileBtn.addEventListener("click", async () => {
-    if (currentReportData && currentReportData.report && currentReportData.report.file_path) {
+    try {
+      const filePath = (currentReportData && currentReportData.report && currentReportData.report.file_path) || "";
       if (window.pywebview && window.pywebview.api) {
-        await window.pywebview.api.open_file(currentReportData.report.file_path);
+        const res = await window.pywebview.api.open_report_file(filePath);
+        if (res && !res.success) {
+          alert("보고서 파일 열기 실패: " + res.error);
+        }
+      } else {
+        alert("데스크톱 앱 환경에서 실행해 주세요.");
       }
-    } else {
-      alert("먼저 생성된 보고서가 필요합니다.");
+    } catch (e) {
+      alert("파일 열기 오류: " + e.message);
     }
   });
 
