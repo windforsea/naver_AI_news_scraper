@@ -1,4 +1,4 @@
-﻿"""
+"""
 pywebview 백엔드 브리지 API 모듈 (api.py)
 데이터베이스 연동 및 AI 비서 챗봇 실시간 지시 통신 지원
 """
@@ -31,6 +31,7 @@ class NewsAppApi:
         self.last_report: Optional[Dict[str, Any]] = None
         self.start_date_str: str = ""
         self.end_date_str: str = ""
+        self.active_instruction: Optional[str] = None  # 이번 보고서 생성에 반영될 활성 지시사항
 
         # 진행 상태 추적 딕셔너리
         self.status = {
@@ -122,19 +123,21 @@ class NewsAppApi:
             csv_path = self.collector.save_csv(df_news, dt_start, dt_end)
             self.last_csv_path = str(csv_path)
 
-            # 4. 사용자 지시사항(챗봇 히스토리)을 종합한 AI 보고서 생성
+            # 4. 사용자 지시사항(챗봇 히스토리 및 활성 지시)을 종합한 AI 보고서 생성
             self.status.update({
                 "step": "reporting",
                 "progress": 90,
-                "message": f"수집 완료(DB 신규 {inserted}건, 기존 {skipped}건)! 사용자 지시사항 반영 AI 보고서 작성 중...",
+                "message": f"수집 완료(DB 신규 {inserted}건, 기존 {skipped}건)! AI 보고서 작성 중...",
             })
 
             chat_history = self.db.get_chat_history()
+            current_instruction = self.active_instruction
             report_res = self.reporter.generate_report(
                 articles=self.articles,
                 start_date_str=self.start_date_str,
                 end_date_str=self.end_date_str,
                 chat_history=chat_history,
+                active_instruction=current_instruction,
             )
 
             if not report_res.get("success"):
@@ -147,6 +150,8 @@ class NewsAppApi:
                 return
 
             self.last_report = report_res
+            # 활성 지시사항 소모 완료(Consumed) 처리
+            self.active_instruction = None
 
             # 5. 생성된 보고서 및 다대다 매핑(report_articles) DB 저장
             article_links = [a.get("link") for a in self.articles if a.get("link")]
@@ -181,14 +186,15 @@ class NewsAppApi:
     # 챗봇 대화 및 실시간 지시사항 API
     # --------------------------------------------------------------------------
     def send_chat(self, user_text: str) -> Dict[str, Any]:
-        """사용자의 맞춤 지시사항 및 질문을 접수하고 AI 비서 피드백 생성"""
+        """사용자의 맞춤 지시사항 및 질문을 접수하고 AI 비서 피드백 생성 (활성 지시로 등록)"""
         text = user_text.strip() if user_text else ""
         if not text:
             return {"success": False, "error": "내용을 입력해주세요."}
 
         try:
-            # 1. 사용자 메시지 DB 저장
+            # 1. 사용자 메시지 DB 저장 및 활성 지시사항으로 등록
             self.db.add_chat_message("user", text)
+            self.active_instruction = text
 
             # 2. AI 응답 생성
             history = self.db.get_chat_history()
@@ -205,17 +211,28 @@ class NewsAppApi:
                 "success": True,
                 "reply": reply,
                 "history": self.db.get_chat_history(),
+                "active_instruction": self.active_instruction,
             }
         except Exception as e:
             return {"success": False, "error": f"AI 비서 응답 실패: {str(e)}"}
+
+    def clear_active_instruction(self) -> Dict[str, bool]:
+        """반영 대기 중인 활성 지시사항 해제 (표준 3대 브리핑으로 복귀)"""
+        self.active_instruction = None
+        return {"success": True}
+
+    def get_active_instruction(self) -> Dict[str, Any]:
+        """현재 반영 대기 중인 활성 지시사항 반환"""
+        return {"success": True, "active_instruction": self.active_instruction}
 
     def get_chat_history(self) -> Dict[str, Any]:
         """대화 히스토리 목록 반환"""
         return {"success": True, "history": self.db.get_chat_history()}
 
     def clear_chat_history(self) -> Dict[str, bool]:
-        """대화 히스토리 초기화"""
+        """대화 히스토리 및 활성 지시사항 초기화"""
         self.db.clear_chat_history()
+        self.active_instruction = None
         return {"success": True}
 
     def get_db_stats(self) -> Dict[str, Any]:
@@ -234,6 +251,7 @@ class NewsAppApi:
             "report": self.last_report,
             "period": f"{self.start_date_str} ~ {self.end_date_str}" if self.start_date_str != self.end_date_str else self.start_date_str,
             "db_stats": self.db.get_stats(),
+            "active_instruction": self.active_instruction,
         }
 
     def open_folder(self, folder_type: str) -> Dict[str, Any]:

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 프론트엔드 인터랙션 및 pywebview 통신 스크립트 (app.js)
  * 3열 대시보드 및 AI 비서 챗봇 실시간 지시 연동
  */
@@ -28,18 +28,23 @@ document.addEventListener("DOMContentLoaded", () => {
   const reportContainer = document.getElementById("report-container");
   const reportEmpty = document.getElementById("report-empty");
   const reportContent = document.getElementById("report-content");
+  const reportModeTag = document.getElementById("report-mode-tag");
 
   const openDataBtn = document.getElementById("open-data-btn");
   const openReportsBtn = document.getElementById("open-reports-btn");
   const copyReportBtn = document.getElementById("copy-report-btn");
   const openFileBtn = document.getElementById("open-file-btn");
 
-  // 챗봇 요소
+  // 챗봇 및 지시사항 요소
   const chatMessages = document.getElementById("chat-messages");
   const chatForm = document.getElementById("chat-form");
   const chatInput = document.getElementById("chat-input");
   const clearChatBtn = document.getElementById("clear-chat-btn");
   const initialChatTime = document.getElementById("initial-chat-time");
+
+  const activeInstructionBar = document.getElementById("active-instruction-bar");
+  const instructionChipText = document.getElementById("instruction-chip-text");
+  const instructionChipRemove = document.getElementById("instruction-chip-remove");
 
   // 1. 초기 시간 표시
   const now = new Date();
@@ -88,6 +93,13 @@ document.addEventListener("DOMContentLoaded", () => {
           res.history.forEach(msg => {
             appendChatMessage(msg.role, msg.content);
           });
+        }
+
+        // 대기 중인 활성 지시사항 조회
+        const activeRes = await window.pywebview.api.get_active_instruction();
+        if (activeRes && activeRes.active_instruction && activeInstructionBar && instructionChipText) {
+          instructionChipText.textContent = activeRes.active_instruction;
+          activeInstructionBar.style.display = "flex";
         }
       }
     } catch (e) {
@@ -226,6 +238,22 @@ document.addEventListener("DOMContentLoaded", () => {
         reportEmpty.style.display = "none";
         reportContent.style.display = "block";
         reportContent.innerHTML = marked.parse(report.report_md);
+
+        // 듀얼 모드 태그 표시
+        if (reportModeTag) {
+          if (report.report_mode === "custom") {
+            reportModeTag.textContent = "맞춤 테마 브리핑";
+            reportModeTag.className = "mode-tag custom";
+          } else {
+            reportModeTag.textContent = "기본 3대 브리핑";
+            reportModeTag.className = "mode-tag standard";
+          }
+        }
+
+        // 보고서 생성 완료 시 활성 지시 바 숨김 (소모됨)
+        if (activeInstructionBar) {
+          activeInstructionBar.style.display = "none";
+        }
       } else {
         reportEmpty.style.display = "flex";
         reportContent.style.display = "none";
@@ -244,12 +272,22 @@ document.addEventListener("DOMContentLoaded", () => {
     chatInput.value = "";
     appendChatMessage("user", text);
 
+    // 활성 지시 바 표시
+    if (activeInstructionBar && instructionChipText) {
+      instructionChipText.textContent = text;
+      activeInstructionBar.style.display = "flex";
+    }
+
     // AI 응답 요청
     try {
       if (window.pywebview && window.pywebview.api) {
         const res = await window.pywebview.api.send_chat(text);
         if (res && res.success) {
           appendChatMessage("assistant", res.reply);
+          if (res.active_instruction && instructionChipText) {
+            instructionChipText.textContent = res.active_instruction;
+            activeInstructionBar.style.display = "flex";
+          }
         } else {
           appendChatMessage("assistant", "응답 오류: " + (res.error || "알 수 없는 오류"));
         }
@@ -258,6 +296,21 @@ document.addEventListener("DOMContentLoaded", () => {
       appendChatMessage("assistant", "전송 실패: " + err.message);
     }
   });
+
+  // 활성 지시사항 해제 버튼 (X 클릭)
+  if (instructionChipRemove) {
+    instructionChipRemove.addEventListener("click", async () => {
+      try {
+        if (window.pywebview && window.pywebview.api) {
+          await window.pywebview.api.clear_active_instruction();
+        }
+        if (activeInstructionBar) activeInstructionBar.style.display = "none";
+        if (instructionChipText) instructionChipText.textContent = "-";
+      } catch (e) {
+        console.warn("지시사항 해제 실패:", e);
+      }
+    });
+  }
 
   function appendChatMessage(role, content) {
     const isUser = role === "user";
@@ -285,6 +338,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (confirm("AI 비서와의 대화 내역을 초기화하시겠습니까?")) {
       if (window.pywebview && window.pywebview.api) {
         await window.pywebview.api.clear_chat_history();
+        if (activeInstructionBar) activeInstructionBar.style.display = "none";
         chatMessages.innerHTML = `
           <div class="msg incoming">
             <div class="msg-bubble">대화 내역이 초기화되었습니다. 새로운 분석 지시사항을 말씀해 주세요!</div>

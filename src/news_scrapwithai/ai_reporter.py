@@ -1,4 +1,4 @@
-﻿"""
+"""
 OpenAI gpt-5.6-luna 기반 IT/과학 뉴스 분석, 사용자 지시 챗봇 및 마크다운 보고서 생성 모듈 (ai_reporter.py)
 """
 
@@ -58,9 +58,12 @@ class NewsReportGenerator:
         start_date_str: str,
         end_date_str: str,
         chat_history: Optional[List[Dict[str, str]]] = None,
+        active_instruction: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        수집된 기사들과 사용자의 챗봇 지시사항(chat_history)을 종합하여 마크다운 보고서 생성
+        수집된 기사들과 사용자의 맞춤 지시사항을 종합하여 마크다운 보고서 생성
+        - 기본 모드(지시사항 없음): [AI 긍정 / AI 부정 / 기타 과학기술] 3대 프레임워크
+        - 맞춤 모드(지시사항 있음): 사용자 요청 주제를 관통하는 테마 중심 유연한 섹션 구성
         """
         if not articles:
             return {
@@ -94,54 +97,96 @@ class NewsReportGenerator:
 
         articles_text = "\n".join(articles_context_blocks)
 
-        # 2. 사용자의 챗봇 지시사항(Human-in-the-loop) 종합
-        user_instructions_summary = ""
-        user_notes_block = ""
-        if chat_history:
-            user_instructions_summary = "; ".join([
-                msg["content"] for msg in chat_history if msg.get("role") == "user"
-            ])
-            user_notes_block = "\n[사용자 실시간 맞춤 요청 및 지시사항 (Human Feedback)]:\n"
-            for msg in chat_history:
-                role_kr = "사용자 요청" if msg.get("role") == "user" else "AI 비서 피드백"
-                user_notes_block += f"- {role_kr}: {msg.get('content')}\n"
-        else:
-            user_instructions_summary = "기본 표준 분석 (추가 지시 없음)"
-            user_notes_block = "\n[사용자 맞춤 요청사항]: 표준 IT/과학 종합 브리핑 기준 작성\n"
+        # 2. 사용자 지시사항 유무에 따른 듀얼 모드 분기
+        instruction_text = (active_instruction or "").strip()
+        if not instruction_text and chat_history:
+            # chat_history 중 마지막 user 메시지가 있다면 그것을 활용
+            user_msgs = [m["content"] for m in chat_history if m.get("role") == "user"]
+            if user_msgs:
+                instruction_text = user_msgs[-1].strip()
 
-        # 3. 시스템 프롬프트
-        system_instructions = (
-            "당신은 글로벌 IT/과학 기술 정책 연구원이자 수석 테크 저널리스트입니다. "
-            "제공된 뉴스 기사들과 사용자의 맞춤 지시사항을 정밀하게 종합하여 공식 브리핑용 고품질 마크다운(.md) 보고서를 작성하세요.\n\n"
-            "반드시 아래 3대 카테고리로 명확하게 분류하여 정리해야 합니다:\n"
-            "1. 🚀 [AI 긍정]: 인공지능 관련 긍정적 뉴스, 성능 혁신, 버전업/신기술 공개, 산업 적용, 생산성 향상 등\n"
-            "2. ⚠️ [AI 부정]: 인공지능 관련 부작용, 보안 위협/해킹, 딥페이크 오남용, 저작권/윤리 분쟁, 규제 논의 등\n"
-            "3. 🔬 [기타 과학기술]: AI가 아닌 일반 IT 및 첨단 과학기술 (우주항공, 양자컴퓨터, 반도체 공정, 바이오/의학, 신소재 등)\n\n"
-            "작성 원칙:\n"
-            "- 사용자가 전달한 맞춤 요청(지시사항)이 있는 경우, 해당 관점을 각 카테고리의 시사점 및 종합 총평에 최우선적으로 반영하세요.\n"
-            "- 각 기사별로 [제목(클릭 가능한 마크다운 링크 형식)] 언론사, '핵심 요약(3줄 불릿)', '산업적·기술적 시사점'을 작성하세요.\n"
-            "- 특정 카테고리에 해당하는 기사가 없다면 '해당 기간 내 주요 이슈 없음'으로 간결히 명시하세요.\n"
-            "- 문서 시작 부분에 [📊 핵심 총평 (Executive Summary)]을 작성하고, 사용자 지시사항이 반영된 포인트를 짚어주세요.\n"
-            "- 문서 끝 부분에 [💡 종합 시사점 및 미래 전망]을 작성하세요.\n"
-            "- 신뢰감 있고 격조 높은 한국어 경어체(~합니다, ~분석됩니다)를 사용하세요."
-        )
+        is_custom_mode = bool(instruction_text)
+        report_mode = "custom" if is_custom_mode else "standard"
 
-        # 4. 사용자 프롬프트
-        user_prompt = f"""[분석 기준 정보]
+        if is_custom_mode:
+            # 맞춤 테마 브리핑 프롬프트
+            user_instructions_summary = instruction_text
+            user_notes_block = (
+                f"\n[★ 사용자 맞춤 최우선 지시사항 (Human Feedback)]:\n"
+                f"- 요청 내용: \"{instruction_text}\"\n"
+                f"- 지시 지침: 인위적인 긍정/부정 구분을 배제하고, 사용자가 요청한 주제를 심층 조명하는 맞춤 테마 섹션으로 구성할 것.\n"
+            )
+
+            system_instructions = (
+                "당신은 글로벌 IT/과학 기술 정책 연구원이자 수석 테크 저널리스트입니다. "
+                "사용자가 구체적인 분석 방향 및 관심 주제를 지정했으므로, 인위적인 긍정/부정 분류 대신 "
+                "사용자의 지시사항을 관통하는 전문적인 테마 중심 마크다운(.md) 보고서를 작성하세요.\n\n"
+                "권장 문서 구조:\n"
+                "1. '# 📡 [IT/과학 테마 브리핑] ' 으로 시작하는 제목\n"
+                "2. '## 🎯 [Executive Summary] 핵심 요약 및 테마 개요' (사용자의 요청 방향과 이를 관통하는 핵심 결론 제시)\n"
+                "3. '## 🔍 1. [테마 집중 분석]: ' (사용자 지시사항과 직접 연관된 기사들을 심층 분석, 기사별 [제목](링크), 언론사, 핵심 요약 3줄 불릿, 세부 분석)\n"
+                "4. '## 🌐 2. [산업적 파급 효과 및 기술 생태계 영향]' (해당 이슈가 시장, 기업, 기술 생태계에 미치는 파급력 분석)\n"
+                "5. '## 📌 3. [동기간 기타 주요 IT/과학 헤드라인]' (지시사항 외에도 해당 기간 수집된 기사 중 주목할 만한 주요 기술 동향 2~3건 간략 정리)\n"
+                "6. '## 💡 [종합 시사점 및 전략적 제언]' (사용자의 관점에서 도출되는 미래 전망 및 액션 아이템)\n\n"
+                "작성 원칙:\n"
+                "- 기사 제목은 반드시 클릭 가능한 마크다운 링크 형식 '[제목](링크)'으로 표기하세요.\n"
+                "- 신뢰감 있고 격조 높은 한국어 경어체(~합니다, ~분석됩니다)를 사용하세요."
+            )
+
+            user_prompt = f"""[분석 기준 정보]
 - 수집 및 분석 기간: {period_display}
 - 총 수집 기사 건수: {len(articles)}건
 - 분석 요청 일시: {created_at_str}
+- 보고서 모드: 사용자 맞춤 테마 브리핑
 {user_notes_block}
 
 [수집된 IT/과학 기사 원문 목록]
 {articles_text}
 
-위 기사들과 사용자 요청사항을 완벽히 반영하여 가독성이 뛰어난 전문 마크다운 보고서를 작성해 주세요.
+사용자의 지시사항("{instruction_text}")을 최우선으로 반영하여 완성도 높은 테마형 마크다운 보고서를 작성해 주세요.
+보고서 제목은 '# 📡 [IT/과학 테마 브리핑] {period_display} 심층 분석 보고서' 로 작성해 주세요.
+"""
+
+        else:
+            # 기본 3대 카테고리 브리핑 프롬프트
+            user_instructions_summary = "기본 표준 분석 (추가 지시 없음)"
+            user_notes_block = "\n[분석 모드]: 표준 IT/과학 3대 카테고리 종합 브리핑\n"
+
+            system_instructions = (
+                "당신은 글로벌 IT/과학 기술 정책 연구원이자 수석 테크 저널리스트입니다. "
+                "제공된 뉴스 기사들을 정밀하게 종합하여 공식 브리핑용 고품질 마크다운(.md) 보고서를 작성하세요.\n\n"
+                "반드시 아래 3대 카테고리로 명확하게 분류하여 정리해야 합니다:\n"
+                "1. 🚀 [AI 긍정]: 인공지능 관련 긍정적 뉴스, 모델 성능 혁신, 산업 도입, 생산성 향상 사례 등\n"
+                "2. ⚠️ [AI 부정]: 인공지능 관련 부작용, 보안 위협/해킹, 딥페이크 오남용, 윤리/저작권 논란, 규제 동향 등\n"
+                "3. 🔬 [기타 IT & 첨단 과학]: AI 외 일반 IT 기술 및 첨단 과학 (반도체, 양자컴퓨터, 우주항공, 바이오, 로봇 등)\n\n"
+                "문서 구조:\n"
+                "1. '# 📡 [IT/과학 트렌드 브리핑] {period_display} 기술 동향 보고서' 로 시작\n"
+                "2. '## 📊 [Executive Summary] 핵심 총평'\n"
+                "3. 각 카테고리별 섹션 ('## 🚀 1. [AI 긍정]', '## ⚠️ 2. [AI 부정]', '## 🔬 3. [기타 IT & 과학]')\n"
+                "   - 각 기사별: '[제목](링크)' (언론사), '핵심 요약(3줄 불릿)', '산업적·기술적 시사점'\n"
+                "   - 특정 카테고리 기사가 없으면 '해당 기간 내 주요 이슈 없음' 명시\n"
+                "4. '## 💡 [종합 시사점 및 미래 전망]'\n\n"
+                "작성 원칙:\n"
+                "- 기사 제목은 반드시 클릭 가능한 마크다운 링크 형식 '[제목](링크)'으로 표기하세요.\n"
+                "- 신뢰감 있고 격조 높은 한국어 경어체(~합니다, ~분석됩니다)를 사용하세요."
+            )
+
+            user_prompt = f"""[분석 기준 정보]
+- 수집 및 분석 기간: {period_display}
+- 총 수집 기사 건수: {len(articles)}건
+- 분석 요청 일시: {created_at_str}
+- 보고서 모드: 기본 3대 카테고리 브리핑
+{user_notes_block}
+
+[수집된 IT/과학 기사 원문 목록]
+{articles_text}
+
+위 기사들을 3대 카테고리로 명확히 분류하여 품격 있는 마크다운 보고서를 작성해 주세요.
 보고서 제목은 '# 📡 [IT/과학 트렌드 브리핑] {period_display} 기술 동향 보고서' 로 시작해 주세요.
 """
 
         try:
-            # 5. OpenAI Responses API 호출 (gpt-5.6-luna)
+            # OpenAI Responses API 호출 (gpt-5.6-luna)
             response = self.client.responses.create(
                 model=self.model_name,
                 instructions=system_instructions,
@@ -149,13 +194,14 @@ class NewsReportGenerator:
             )
             report_md = response.output_text.strip()
 
-            # 6. 마크다운 파일 저장
+            # 마크다운 파일 저장
             file_date_str = (
                 start_date_str.replace("-", "")
                 if start_date_str == end_date_str
                 else f"{start_date_str.replace('-', '')}_{end_date_str.replace('-', '')}"
             )
-            filename = f"IT_과학_뉴스보고서_{file_date_str}.md"
+            mode_prefix = "맞춤테마" if is_custom_mode else "기본브리핑"
+            filename = f"IT_과학_{mode_prefix}_{file_date_str}.md"
             file_path = REPORTS_DIR / filename
 
             with open(file_path, "w", encoding="utf-8") as f:
@@ -170,6 +216,7 @@ class NewsReportGenerator:
                 "period": period_display,
                 "article_count": len(articles),
                 "user_instructions": user_instructions_summary,
+                "report_mode": report_mode,
             }
 
         except Exception as e:
