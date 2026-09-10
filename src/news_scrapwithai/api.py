@@ -511,6 +511,17 @@ class NewsAppApi:
         """특정 파일 시스템 열기 (open_report_file 위임)"""
         return self.open_report_file(file_path)
 
+    def open_external_url(self, url: str = "") -> Dict[str, Any]:
+        """외부 웹브라우저(Chrome, Edge 등 OS 기본 브라우저)로 웹 URL 열기"""
+        if not url or not (url.startswith("http://") or url.startswith("https://")):
+            return {"success": False, "error": "유효한 웹 URL이 아닙니다."}
+        try:
+            import webbrowser
+            webbrowser.open(url)
+            return {"success": True, "url": url}
+        except Exception as e:
+            return {"success": False, "error": f"외부 브라우저 실행 실패: {e}"}
+
     def export_articles_csv(self) -> Dict[str, Any]:
         """현재 로드된 기사 목록을 reports/ 폴더에 utf-8-sig CSV(6개 고정 규격 컬럼)로 온디맨드 내보내기"""
         if not self.articles:

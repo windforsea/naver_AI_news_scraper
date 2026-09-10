@@ -71,15 +71,73 @@ document.addEventListener("DOMContentLoaded", () => {
     showMonths: 1,
   });
 
-  // 3. 앱 초기화 (DB 통계, 대화 히스토리, 이전 보고서 목록 및 최신 보고서 로드)
-  setTimeout(async () => {
-    if (window.pywebview && window.pywebview.api) {
+  // 3. 외부 웹브라우저 안전 호출 헬퍼 (앱 내부 내비게이션 탈출 방지)
+  function openExternalUrl(url) {
+    if (!url || url === "#" || url.startsWith("javascript:")) return;
+    try {
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.open_external_url) {
+        window.pywebview.api.open_external_url(url);
+      } else {
+        window.open(url, "_blank");
+      }
+    } catch (e) {
+      console.error("외부 브라우저 호출 오류:", e);
+      window.open(url, "_blank");
+    }
+  }
+
+  // 앱 내 모든 외부 웹 링크(http/https) 클릭 시 앱 창 이동을 원천 차단하고 시스템 기본 브라우저로 열리도록 처리
+  document.addEventListener("click", (e) => {
+    const anchor = e.target.closest("a");
+    if (!anchor) return;
+    const href = anchor.getAttribute("href");
+    if (href && (href.startsWith("http://") || href.startsWith("https://"))) {
+      e.preventDefault();
+      e.stopPropagation();
+      openExternalUrl(href);
+    }
+  });
+
+  // 4. 앱 초기화 (pywebviewready 이벤트 및 50ms 폴링을 통한 즉각적인 기존 데이터 및 보고서 복원)
+  let isAppInitialized = false;
+
+  async function initializeApp() {
+    if (isAppInitialized) return;
+    if (!window.pywebview || !window.pywebview.api) return;
+
+    isAppInitialized = true;
+    console.log("pywebview API 준비 완료: 초기 데이터 로드 시작...");
+
+    try {
       await refreshDbStats();
       await loadChatHistory();
-      await loadReportsHistoryList();
       await loadLatestReportOnStartup();
+      await loadReportsHistoryList();
+      if (currentSelectedReportKey) {
+        document.querySelectorAll(".report-file-card").forEach((c) => {
+          c.classList.toggle("active", c.dataset.key === currentSelectedReportKey);
+        });
+      }
+    } catch (err) {
+      console.error("앱 초기 데이터 로드 오류:", err);
     }
-  }, 300);
+  }
+
+  // 1) pywebview 공식 준비 완료 이벤트
+  window.addEventListener("pywebviewready", () => {
+    initializeApp();
+  });
+
+  // 2) 타이밍 차이 대비 50ms 주기 체크
+  const initInterval = setInterval(() => {
+    if (window.pywebview && window.pywebview.api) {
+      clearInterval(initInterval);
+      initializeApp();
+    }
+  }, 50);
+
+  // 10초 후 타이머 해제
+  setTimeout(() => clearInterval(initInterval), 10000);
 
   async function refreshDbStats() {
     try {
@@ -228,6 +286,10 @@ document.addEventListener("DOMContentLoaded", () => {
                   if (loadRes.articles && loadRes.articles.length > 0) {
                     renderArticles(loadRes.articles, loadRes.report.period || "-");
                   }
+                  if (datePickerInstance && loadRes.report.period && loadRes.report.period !== "-") {
+                    const parts = loadRes.report.period.split(" ~ ").map(p => p.trim());
+                    datePickerInstance.setDate(parts, false);
+                  }
                 } else {
                   alert("보고서 불러오기 실패: " + (loadRes?.error || "오류"));
                 }
@@ -257,6 +319,10 @@ document.addEventListener("DOMContentLoaded", () => {
           renderReport(res.report);
           if (res.articles && res.articles.length > 0) {
             renderArticles(res.articles, res.report.period || "-");
+          }
+          if (datePickerInstance && res.report.period && res.report.period !== "-") {
+            const parts = res.report.period.split(" ~ ").map(p => p.trim());
+            datePickerInstance.setDate(parts, false);
           }
           // 파일 탐색기 카드 active 동기화
           document.querySelectorAll(".report-file-card").forEach(c => {
@@ -430,6 +496,15 @@ document.addEventListener("DOMContentLoaded", () => {
       reportEmpty.style.display = "none";
       reportContent.style.display = "block";
       reportContent.innerHTML = marked.parse(report.report_md);
+
+      // 마크다운 파싱 결과 내 모든 링크에 target="_blank", rel 및 안내 툴팁 일괄 부여
+      reportContent.querySelectorAll("a").forEach((a) => {
+        a.setAttribute("target", "_blank");
+        a.setAttribute("rel", "noopener noreferrer");
+        if (!a.title && a.href) {
+          a.title = "웹 브라우저에서 기사 원문 보기";
+        }
+      });
 
       if (reportModeTag) {
         const isCustom = (report.report_mode === "custom") || 

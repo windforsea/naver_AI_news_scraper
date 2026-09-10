@@ -983,10 +983,15 @@ body {
 .markdown-body a {
   color: #38bdf8;
   text-decoration: none;
+  border-bottom: 1px dashed rgba(56, 189, 248, 0.4);
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .markdown-body a:hover {
-  text-decoration: underline;
+  color: #7dd3fc;
+  border-bottom-style: solid;
+  text-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
 }
 
 /* ==========================================================================
