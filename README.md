@@ -34,13 +34,13 @@ flowchart TD
 
     subgraph Backend["⚙️ Python Core Engine (news_scrapwithai)"]
         B1["NaverNewsCollector (Scraper)"]
-        B2["NewsDatabase (SQLite RDBMS - 단일 진실 공급원)"]
+        B2["NewsDatabase (SQLite RDBMS - 단일 DB 간결화)"]
         B3["NewsReportGenerator (gpt-5.6-luna)"]
         B4["NewsAppApi (Bridge Controller)"]
     end
 
     subgraph Storage["💾 Persistence Layer"]
-        DB[("news.db (SQLite 단일 진실 공급원)")]
+        DB[("news.db (SQLite 단일 DB 간결화)")]
         MD["📁 reports/*.md (AI 브리핑 보고서)"]
         CSV["📁 reports/*.csv (온디맨드 내보내기)"]
     end
@@ -127,9 +127,9 @@ flowchart TD
 - **스마트 파일 열기 (`open_report_file`)**:
   - `📄 열기` 버튼 클릭 시 현재 활성 보고서뿐 아니라, 메모리가 비어있더라도 최신 `.md` 파일을 탐색하여 윈도우 기본 마크다운/텍스트 뷰어로 즉시 실행합니다.
 
-### 8. 📊 SQLite 기반 단일 진실 공급원(SSOT) & 온디맨드 CSV 내보내기 & 최대 1000건 대량 수집
-- **SQLite 단일 진실 공급원(Single Source of Truth) 정립**:
-  - 기사 수집 시마다 무조건 CSV 파일이 자동 생성되던 구조를 전면 폐기하고, SQLite RDBMS(`data/news.db`)만을 유일한 원천 저장소로 확립하여 파일 파편화와 저장소 오염을 원천 차단했습니다.
+### 8. 📊 SQLite 기반 단일 DB 간결화 & 온디맨드 CSV 내보내기 & 최대 1000건 대량 수집
+- **SQLite 기반 단일 DB 간결화 체계 구축**:
+  - 기사 수집 시마다 무조건 CSV 파일이 자동 생성되던 구조를 전면 폐기하고, SQLite RDBMS(`data/news.db`)만을 단일 저장소로 삼아 파일 파편화와 저장소 오염을 원천 차단했습니다.
 - **필요 시 즉시 추출하는 온디맨드 `[📊 CSV 내보내기]`**:
   - 사용자가 데이터 분석이나 보관용으로 CSV 파일이 필요할 때만 원클릭으로 6개 고정 컬럼 규격(`title`, `content`, `link`, `originallink`, `pubDate`, `press`)의 `utf-8-sig` 인코딩 CSV를 `reports/` 디렉터리에 생성합니다. 데이터 폴더와 보고서 폴더의 역할을 명확히 분리하여 데이터 관리 효율을 극대화했습니다.
 - **최대 1,000건 대량 기사 수집 & 동적 페이징 탐색 알고리즘**:
@@ -213,7 +213,7 @@ flowchart TD
 
 ---
 
-### Q7. 불필요한 파일 파편화와 좁은 본문 뷰어 ➔ SQLite 단일 진실 공급원, 온디맨드 CSV 및 와이드 브리핑 워크스페이스 전면 개편
+### Q7. 불필요한 파일 파편화와 좁은 본문 뷰어 ➔ SQLite 단일 DB 간결화, 온디맨드 CSV 및 와이드 브리핑 워크스페이스 전면 개편
 - **문제 의문 (The Problem)**:
   "수집할 때마다 매번 `data/` 폴더에 CSV 파일이 자동 생성되어 파일이 불필요하게 파편화되고, 정작 중요한 AI 보고서 본문창은 좁고 글씨가 작아 가독성이 떨어집니다. 또한 이전 보고서를 보려면 상단 팝업을 거쳐야 해서 번거롭고, 기사 수집만 대량(1,000건 등)으로 하고 싶을 때의 옵션이 부족합니다."
 - **원인 분석 (Root Cause)**:
@@ -221,7 +221,7 @@ flowchart TD
   - 대시보드가 3열 균등 분할에 가까워 핵심 콘텐츠인 중앙 마크다운 보고서 영역의 가로폭과 폰트(13px)가 텍스트 리포트를 읽기에 좁고 피로도가 높았습니다.
   - 브리핑 과거 내역 열람이 모달/드롭다운에 의존하여 파일 탐색기처럼 직관적으로 과거 리포트와 매핑 기사를 오가는 UX가 부족했습니다.
 - **해결 방안 (Solution)**:
-  1. **SQLite를 단일 진실 공급원(SSOT)으로 통일 & 온디맨드 CSV 내보내기**:
+  1. **SQLite 기반 단일 DB 간결화 & 온디맨드 CSV 내보내기**:
      - 자동 CSV 생성을 전면 폐기하고, 사용자가 원할 때만 DB 데이터를 6개 고정 컬럼(`utf-8-sig`) CSV로 즉시 추출하는 `[📊 CSV 내보내기]` 기능으로 전환. 저장 경로도 `reports/`로 단일화하여 `data/` 폴더는 SQLite DB 전용으로 깔끔히 격리.
   2. **황금비 와이드 레이아웃 (좌 23% : 중앙 56% : 우 21%) & 폰트 크기 동적 조절**:
      - 중앙 브리핑 패널의 가로 비율을 56% 이상 대폭 확장하고, `[ A- | 100% | A+ ]` 폰트 스케일러(80%~150%, `localStorage` 저장)를 적용하여 시인성을 극대화.
@@ -259,7 +259,7 @@ news_scrapwithAI/
 ├── run.bat               # 원클릭 실행 배치 스크립트 (경로 고정 및 이스케이프 무결성)
 ├── docs/                 # 포트폴리오용 시각자료
 │   └── app_dashboard_final.png
-├── data/                 # SQLite RDBMS 저장소 (단일 진실 공급원)
+├── data/                 # SQLite RDBMS 저장소 (단일 DB 간결화)
 │   └── news.db           # SQLite 4대 정규화 데이터베이스 (articles, reports 등)
 ├── reports/              # AI 마크다운 보고서 (*.md) 및 온디맨드 CSV (*.csv) 저장소
 ├── web/                  # 프론트엔드 리소스 (HTML5, CSS3, JS)
