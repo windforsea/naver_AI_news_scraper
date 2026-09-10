@@ -13,7 +13,7 @@
 ## 📸 프로그램 실행 화면 (Application Screenshot)
 
 <p align="center">
-  <img src="docs/app_main_screenshot.png" alt="IT/과학 뉴스 AI 브리핑 대시보드" width="760" style="border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.2);" />
+  <img src="docs/app_dashboard_main.png" alt="IT/과학 뉴스 AI 브리핑 대시보드" width="760" style="border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.2);" />
 </p>
 <p align="center"><i>▲ 네이버 뉴스 [IT/과학] 카테고리 전체 최신순 자동 수집, AI 비서 실시간 지시 연동 맞춤 브리핑 및 이전 보고서 이력 관리 대시보드</i></p>
 
@@ -52,19 +52,19 @@ flowchart TD
 
     A3 -->|보고서 요청| B4
     B4 -->|1. DB 우선 캐시 확인| B2
-    B2 -.->|기사 존재 시 즉시 반환 (크롤링 생략)| B4
+    B2 -.->|기사 존재 시 즉시 반환| B4
     B4 -.->|기사 부재 시 자동 수집 연계| B1
     A4 -->|실시간 지시 주입| B4
-    B4 -->|기사 컨텍스트 + 사용자 지시사항| B3
+    B4 -->|기사 컨텍스트 & 사용자 지시사항| B3
     B3 -->|OpenAI Responses API| LLM[("OpenAI gpt-5.6-luna")]
     LLM -->|마크다운 보고서 생성| B3
     B3 -->|보고서 저장 & M:N 기사 매핑| B2
     B3 -->|마크다운 파일 저장| MD
     B4 -->|결과 데이터 전달| UI
 
-    A5 <-->|앱 구동 시 최신 보고서 자동 복원 & 이력 선택 조회| B4
-    B4 <-->|보고서 및 매핑 기사 쿼리| B2
-    B4 -->|로컬 파일 시스템 실행 (os.startfile)| MD
+    A5 -->|최신 보고서 자동 로드 & 이력 선택| B4
+    B4 -->|보고서 및 매핑 기사 쿼리| B2
+    B4 -->|시스템 기본 뷰어로 파일 실행| MD
 ```
 
 ---
@@ -221,7 +221,7 @@ news_scrapwithAI/
 ├── pyproject.toml        # 의존성 및 프로젝트 메타데이터
 ├── run.bat               # 원클릭 실행 배치 스크립트 (경로 고정 및 이스케이프 무결성)
 ├── docs/                 # 포트폴리오용 시각자료
-│   └── app_main_screenshot.png
+│   └── app_dashboard_main.png
 ├── data/                 # SQLite DB 및 엑셀 호환 CSV 저장소
 │   ├── news.db           # SQLite 4대 정규화 데이터베이스
 │   └── news_*.csv        # 일자별 6개 고정 컬럼 CSV
