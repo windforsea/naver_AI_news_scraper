@@ -387,6 +387,8 @@ class NewsAppApi:
                 start_p = period_parts[0].strip()
                 end_p = period_parts[1].strip() if len(period_parts) > 1 else start_p
                 articles = self.db.get_articles_by_date_range(start_p, end_p, 50)
+            if not articles:
+                articles = self.db.get_recent_articles(50)
             self.articles = articles
             return {
                 "success": True,
@@ -412,13 +414,25 @@ class NewsAppApi:
                         "created_at": datetime.fromtimestamp(os.path.getmtime(latest_file)).strftime("%Y-%m-%d %H:%M"),
                     }
                     self.last_report = fallback_report
+                    recent_articles = self.db.get_recent_articles(50)
+                    self.articles = recent_articles
                     return {
                         "success": True,
                         "report": fallback_report,
-                        "articles": [],
+                        "articles": recent_articles,
                     }
                 except Exception:
                     pass
+
+            recent_articles = self.db.get_recent_articles(50)
+            if recent_articles:
+                self.articles = recent_articles
+                return {
+                    "success": False,
+                    "report": None,
+                    "articles": recent_articles,
+                    "error": "저장된 보고서가 없습니다.",
+                }
 
         return {"success": False, "error": "저장된 보고서가 없습니다."}
 

@@ -98,46 +98,87 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // 4. 앱 초기화 (pywebviewready 이벤트 및 50ms 폴링을 통한 즉각적인 기존 데이터 및 보고서 복원)
+  // pywebview API 함수 바인딩 여부를 엄격하게 검증하는 함수
+  function isPywebviewApiReady() {
+    return (
+      typeof window.pywebview !== "undefined" &&
+      typeof window.pywebview.api !== "undefined" &&
+      typeof window.pywebview.api.get_db_stats === "function" &&
+      typeof window.pywebview.api.get_reports_list === "function" &&
+      typeof window.pywebview.api.get_latest_report === "function"
+    );
+  }
+
+  // 4. 앱 초기화 (API 함수 완전 바인딩 감지 시 즉각적인 기존 데이터 및 보고서 복원)
   let isAppInitialized = false;
 
   async function initializeApp() {
     if (isAppInitialized) return;
-    if (!window.pywebview || !window.pywebview.api) return;
+    if (!isPywebviewApiReady()) return;
 
-    isAppInitialized = true;
-    console.log("pywebview API 준비 완료: 초기 데이터 로드 시작...");
+    console.log("pywebview API 바인딩 확인 완료: 초기 데이터 로드 시작...");
+
+    let successCount = 0;
 
     try {
       await refreshDbStats();
+      successCount++;
+    } catch (e) {
+      console.warn("DB 통계 복원 실패:", e);
+    }
+
+    try {
       await loadChatHistory();
+      successCount++;
+    } catch (e) {
+      console.warn("챗 히스토리 복원 실패:", e);
+    }
+
+    try {
       await loadLatestReportOnStartup();
+      successCount++;
+    } catch (e) {
+      console.warn("최신 보고서 복원 실패:", e);
+    }
+
+    try {
       await loadReportsHistoryList();
-      if (currentSelectedReportKey) {
-        document.querySelectorAll(".report-file-card").forEach((c) => {
-          c.classList.toggle("active", c.dataset.key === currentSelectedReportKey);
-        });
-      }
-    } catch (err) {
-      console.error("앱 초기 데이터 로드 오류:", err);
+      successCount++;
+    } catch (e) {
+      console.warn("보고서 목록 복원 실패:", e);
+    }
+
+    if (currentSelectedReportKey) {
+      document.querySelectorAll(".report-file-card").forEach((c) => {
+        c.classList.toggle("active", c.dataset.key === currentSelectedReportKey);
+      });
+    }
+
+    if (successCount >= 2) {
+      isAppInitialized = true;
+      if (initInterval) clearInterval(initInterval);
+      console.log(`앱 초기 데이터 복원 성공 (${successCount}/4 항목 완료)`);
     }
   }
 
-  // 1) pywebview 공식 준비 완료 이벤트
+  // 1) pywebview 공식 준비 완료 이벤트 리스너 등록
   window.addEventListener("pywebviewready", () => {
-    initializeApp();
-  });
-
-  // 2) 타이밍 차이 대비 50ms 주기 체크
-  const initInterval = setInterval(() => {
-    if (window.pywebview && window.pywebview.api) {
-      clearInterval(initInterval);
+    if (isPywebviewApiReady()) {
       initializeApp();
     }
-  }, 50);
+  });
 
-  // 10초 후 타이머 해제
-  setTimeout(() => clearInterval(initInterval), 10000);
+  // 2) 30ms 주기 폴링 (API 함수가 완전히 바인딩될 때까지 실시간 감지)
+  const initInterval = setInterval(() => {
+    if (isPywebviewApiReady()) {
+      initializeApp();
+    }
+  }, 30);
+
+  // 15초 후 폴링 안전 해제
+  setTimeout(() => {
+    if (initInterval) clearInterval(initInterval);
+  }, 15000);
 
   async function refreshDbStats() {
     try {
@@ -328,6 +369,8 @@ document.addEventListener("DOMContentLoaded", () => {
           document.querySelectorAll(".report-file-card").forEach(c => {
             c.classList.toggle("active", c.dataset.key === key);
           });
+        } else if (res && res.articles && res.articles.length > 0) {
+          renderArticles(res.articles, "-");
         }
       }
     } catch (e) {
