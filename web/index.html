@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
@@ -22,16 +22,14 @@
   </div>
 
   <div class="app-container">
-    <!-- 1. 사파이어 글래스 헤더 -->
+    <!-- 1. 헤더 -->
     <header class="app-header glass-panel">
       <div class="brand">
-        <div class="brand-gem">💎</div>
         <div class="brand-text">
           <div class="title-row">
             <h1>네이버 뉴스 [IT/과학] AI 브리핑 시스템</h1>
-            <span class="edition-badge">SAPPHIRE GLASS EDITION</span>
           </div>
-          <p>IT/과학(섹션 105) 전체 수집 &bull; SQLite DB 아카이브 &bull; gpt-5.6-luna 맞춤형 보고서</p>
+          <p>IT/과학(섹션 105) 수집 &bull; SQLite DB 아카이브 &bull; gpt-5.6-luna 맞춤형 보고서</p>
         </div>
       </div>
       <div class="header-badges">
@@ -42,7 +40,7 @@
       </div>
     </header>
 
-    <!-- 2. 사파이어 글래스 컨트롤 패널 -->
+    <!-- 2. 컨트롤 패널 -->
     <section class="control-panel glass-panel">
       <div class="control-grid">
         <!-- 1) 달력 날짜 선택기 -->
@@ -64,7 +62,7 @@
 
         <!-- 3) 수집 건수 -->
         <div class="form-group count-group">
-          <label for="max-items">🎯 최대 수집 건수</label>
+          <label for="max-items">🎯 수집/분석 건수</label>
           <select id="max-items" class="glass-input">
             <option value="10">10건 (고속 테스트)</option>
             <option value="20" selected>20건 (권장)</option>
@@ -74,11 +72,15 @@
           </select>
         </div>
 
-        <!-- 4) 원클릭 실행 버튼 -->
-        <div class="form-group action-group">
-          <button type="button" id="run-btn" class="btn sapphire-glow-btn">
-            <span class="btn-icon">🚀</span>
-            <span class="btn-text">수집 & AI 보고서 생성</span>
+        <!-- 4) 수집 및 보고서 생성 2단 분리 버튼 -->
+        <div class="form-group action-group-dual">
+          <button type="button" id="collect-btn" class="btn action-btn-collect" title="지정된 날짜의 IT/과학 기사를 수집하여 DB에 저장합니다.">
+            <span class="btn-icon">📥</span>
+            <span class="btn-text">기사 수집 (DB 저장)</span>
+          </button>
+          <button type="button" id="report-btn" class="btn action-btn-report" title="DB 기사(없을 시 자동 수집)와 지시사항을 바탕으로 AI 보고서를 작성합니다.">
+            <span class="btn-icon">📑</span>
+            <span class="btn-text">AI 보고서 생성</span>
           </button>
         </div>
       </div>
@@ -165,10 +167,10 @@
 
         <div class="report-container custom-scrollbar" id="report-container">
           <div class="report-empty" id="report-empty">
-            <div class="empty-icon-box">💎</div>
+            <div class="empty-icon-box">📑</div>
             <h3>생성된 AI 보고서가 없습니다</h3>
-            <p>기사가 수집되면 우측 <b>AI 비서에게 지시한 사항</b>을 종합하여<br>
-            고급스러운 사파이어 마크다운 보고서를 이곳에 출력합니다.</p>
+            <p>상단에서 <b>[기사 수집]</b>으로 DB에 적재하거나 <b>[AI 보고서 생성]</b>을 누르시면<br>
+            선택 기간의 기사 및 우측 AI 비서 지시사항을 종합한 보고서가 이곳에 출력됩니다.</p>
           </div>
           <div class="markdown-body" id="report-content" style="display: none;"></div>
         </div>

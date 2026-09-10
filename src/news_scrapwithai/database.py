@@ -1,4 +1,4 @@
-﻿"""
+"""
 SQLite 데이터베이스 관리 모듈 (database.py)
 기사(articles), 보고서(reports), 매핑(report_articles), 대화(chat_messages) 테이블 관리
 """
@@ -128,6 +128,25 @@ class NewsDatabase:
             conn.commit()
 
         return inserted_count, skipped_count
+
+    def get_articles_by_date_range(
+        self,
+        start_date_str: str,
+        end_date_str: str,
+        limit: int = 100,
+    ) -> List[Dict[str, Any]]:
+        """지정된 날짜 범위(YYYY-MM-DD)의 기사들을 조회 (최신순)"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, title, content, link, originallink, pub_date as pubDate, press, category, collected_at
+                FROM articles
+                WHERE substr(pub_date, 1, 10) >= ? AND substr(pub_date, 1, 10) <= ?
+                ORDER BY pub_date DESC, id DESC
+                LIMIT ?;
+            """, (start_date_str, end_date_str, limit))
+            rows = cursor.fetchall()
+            return [dict(r) for r in rows]
 
     def save_report(
         self,

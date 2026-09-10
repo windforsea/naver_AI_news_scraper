@@ -43,21 +43,21 @@ class NewsAppApi:
             "error": "",
         }
 
-    def start_pipeline(
+    def start_collect(
         self,
         start_date: str,
         end_date: str,
-        query: str = "",
         max_items: int = 30,
     ) -> Dict[str, Any]:
         """
-        네이버 뉴스 IT/과학 전체 수집 ➔ DB 적재(중복 자동 스킵) ➔ 사용자 지시 반영 AI 보고서 생성 파이프라인
+        [1단계: 기사 수집 및 DB 적재] 네이버 뉴스 IT/과학(섹션 105) 기사만 수집하여 SQLite DB 및 CSV에 저장
         """
         if self.status["is_running"]:
             return {"success": False, "error": "이미 다른 작업이 진행 중입니다."}
 
         self.start_date_str = start_date
         self.end_date_str = end_date
+        self.last_report = None
 
         try:
             dt_start = datetime.strptime(start_date, "%Y-%m-%d").date()
@@ -78,18 +78,17 @@ class NewsAppApi:
         }
 
         thread = threading.Thread(
-            target=self._run_pipeline_worker,
+            target=self._run_collect_worker,
             args=(dt_start, dt_end, max_items),
             daemon=True,
         )
         thread.start()
 
-        return {"success": True, "message": "작업이 시작되었습니다."}
+        return {"success": True, "message": "기사 수집이 시작되었습니다."}
 
-    def _run_pipeline_worker(self, dt_start, dt_end, max_items: int) -> None:
-        """백그라운드 워커 스레드"""
+    def _run_collect_worker(self, dt_start, dt_end, max_items: int) -> None:
+        """기사 수집 전용 백그라운드 워커 (AI 호출 없음)"""
         try:
-            # 1. 네이버 뉴스 [IT/과학] 섹션 기사 수집 및 크롤링
             def progress_callback(info: Dict[str, Any]):
                 self.status["progress"] = info.get("progress", self.status["progress"])
                 self.status["message"] = info.get("message", self.status["message"])
@@ -108,7 +107,7 @@ class NewsAppApi:
                     "is_running": False,
                     "step": "done",
                     "progress": 100,
-                    "message": "지정된 날짜의 IT/과학 뉴스가 없습니다.",
+                    "message": "지정된 날짜에 수집된 IT/과학 뉴스가 없습니다.",
                     "article_count": 0,
                 })
                 self.articles = []
@@ -116,18 +115,124 @@ class NewsAppApi:
 
             self.articles = df_news.to_dict(orient="records")
 
-            # 2. 데이터베이스 영구 적재 (INSERT OR IGNORE 중복 방지)
+            # DB 영구 적재 (INSERT OR IGNORE)
             inserted, skipped = self.db.save_articles(self.articles)
 
-            # 3. 엑셀 호환 CSV 저장 (호환성 유지)
+            # CSV 저장
             csv_path = self.collector.save_csv(df_news, dt_start, dt_end)
             self.last_csv_path = str(csv_path)
 
-            # 4. 사용자 지시사항(챗봇 히스토리 및 활성 지시)을 종합한 AI 보고서 생성
+            self.status.update({
+                "is_running": False,
+                "step": "done",
+                "progress": 100,
+                "message": f"🎉 기사 {len(df_news)}건 수집 완료 (DB 신규 {inserted}건, 기존 중복 {skipped}건)",
+                "article_count": len(self.articles),
+            })
+
+        except Exception as e:
+            self.status.update({
+                "is_running": False,
+                "step": "error",
+                "error": str(e),
+                "message": f"기사 수집 중 예외 발생: {str(e)}",
+            })
+
+    def start_report(
+        self,
+        start_date: str,
+        end_date: str,
+        max_items: int = 30,
+    ) -> Dict[str, Any]:
+        """
+        [2단계: AI 보고서 생성]
+        선택된 날짜의 기사가 DB에 있으면 즉시 읽어오고, 없으면 수집하여 DB 적재 후 보고서 생성
+        """
+        if self.status["is_running"]:
+            return {"success": False, "error": "이미 다른 작업이 진행 중입니다."}
+
+        self.start_date_str = start_date
+        self.end_date_str = end_date
+        self.last_report = None
+
+        try:
+            dt_start = datetime.strptime(start_date, "%Y-%m-%d").date()
+            dt_end = datetime.strptime(end_date, "%Y-%m-%d").date()
+        except Exception as e:
+            return {"success": False, "error": f"날짜 형식 오류 (YYYY-MM-DD): {e}"}
+
+        if dt_start > dt_end:
+            return {"success": False, "error": "시작일이 종료일보다 늦을 수 없습니다."}
+
+        self.status = {
+            "is_running": True,
+            "step": "reporting",
+            "progress": 5,
+            "message": "DB 아카이브 확인 및 AI 보고서 준비 중...",
+            "article_count": 0,
+            "error": "",
+        }
+
+        thread = threading.Thread(
+            target=self._run_report_worker,
+            args=(dt_start, dt_end, max_items),
+            daemon=True,
+        )
+        thread.start()
+
+        return {"success": True, "message": "보고서 생성이 시작되었습니다."}
+
+    def _run_report_worker(self, dt_start, dt_end, max_items: int) -> None:
+        """AI 보고서 생성 백그라운드 워커 (DB 우선 캐시 / 미존재 시 자동 수집 및 DB 저장 후 작성)"""
+        try:
+            # 1. DB에서 해당 기간 기사 우선 조회 (Cache-First)
+            db_articles = self.db.get_articles_by_date_range(self.start_date_str, self.end_date_str, max_items)
+
+            if db_articles and len(db_articles) > 0:
+                self.articles = db_articles
+                self.status["progress"] = 30
+                self.status["message"] = f"DB에서 기사 {len(db_articles)}건을 즉시 로드했습니다! AI 보고서 작성 중..."
+            else:
+                # 2. DB에 기사가 없으면 네이버 뉴스에서 자동 수집 후 DB 적재
+                self.status.update({
+                    "step": "scraping",
+                    "progress": 10,
+                    "message": "DB에 해당 기간 기사가 없어 네이버 뉴스 수집을 먼저 진행합니다...",
+                })
+
+                def progress_callback(info: Dict[str, Any]):
+                    pct = min(60, int(10 + (info.get("progress", 0) * 0.5)))
+                    self.status["progress"] = pct
+                    self.status["message"] = info.get("message", self.status["message"])
+
+                df_news = self.collector.collect_section_news(
+                    start_date=dt_start,
+                    end_date=dt_end,
+                    max_target=max_items,
+                    progress_callback=progress_callback,
+                )
+
+                if df_news.empty:
+                    self.status.update({
+                        "is_running": False,
+                        "step": "done",
+                        "progress": 100,
+                        "message": "해당 날짜에 수집된 기사가 없어 보고서를 생성할 수 없습니다.",
+                        "article_count": 0,
+                    })
+                    self.articles = []
+                    return
+
+                self.articles = df_news.to_dict(orient="records")
+                inserted, skipped = self.db.save_articles(self.articles)
+                csv_path = self.collector.save_csv(df_news, dt_start, dt_end)
+                self.last_csv_path = str(csv_path)
+
+            # 3. AI 보고서 작성
             self.status.update({
                 "step": "reporting",
-                "progress": 90,
-                "message": f"수집 완료(DB 신규 {inserted}건, 기존 {skipped}건)! AI 보고서 작성 중...",
+                "progress": 70,
+                "message": f"기사 {len(self.articles)}건 종합 및 gpt-5.6-luna 브리핑 보고서 작성 중...",
             })
 
             chat_history = self.db.get_chat_history()
@@ -150,10 +255,9 @@ class NewsAppApi:
                 return
 
             self.last_report = report_res
-            # 활성 지시사항 소모 완료(Consumed) 처리
-            self.active_instruction = None
+            self.active_instruction = None  # 지시사항 1회 소모 완료
 
-            # 5. 생성된 보고서 및 다대다 매핑(report_articles) DB 저장
+            # 4. 생성된 보고서 및 다대다 매핑 DB 저장
             article_links = [a.get("link") for a in self.articles if a.get("link")]
             report_id = self.db.save_report(
                 title=f"IT/과학 뉴스 브리핑 ({report_res.get('period')})",
@@ -166,12 +270,11 @@ class NewsAppApi:
             )
             report_res["db_report_id"] = report_id
 
-            # 6. 전체 파이프라인 완료
             self.status.update({
                 "is_running": False,
                 "step": "done",
                 "progress": 100,
-                "message": f"🎉 완료! 기사 {len(df_news)}건 수집(신규 {inserted}건), DB 및 보고서 저장 완료",
+                "message": f"🎉 AI 브리핑 보고서 작성 완료! ({len(self.articles)}건 기사 분석)",
             })
 
         except Exception as e:
@@ -179,8 +282,18 @@ class NewsAppApi:
                 "is_running": False,
                 "step": "error",
                 "error": str(e),
-                "message": f"작업 중 예외 발생: {str(e)}",
+                "message": f"보고서 생성 중 예외 발생: {str(e)}",
             })
+
+    def start_pipeline(
+        self,
+        start_date: str,
+        end_date: str,
+        query: str = "",
+        max_items: int = 30,
+    ) -> Dict[str, Any]:
+        """기존 파이프라인 호환용 래퍼 (보고서 생성 실행)"""
+        return self.start_report(start_date, end_date, max_items)
 
     # --------------------------------------------------------------------------
     # 챗봇 대화 및 실시간 지시사항 API

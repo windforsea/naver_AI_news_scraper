@@ -11,7 +11,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // DOM 요소
   const dateInput = document.getElementById("date-range");
   const maxItemsSelect = document.getElementById("max-items");
-  const runBtn = document.getElementById("run-btn");
+  const collectBtn = document.getElementById("collect-btn");
+  const reportBtn = document.getElementById("report-btn");
   const appStatusBadge = document.getElementById("app-status-badge");
   const dbStatBadge = document.getElementById("db-stat-badge");
 
@@ -107,12 +108,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // 4. [수집 & AI 보고서 생성] 원클릭 실행
-  runBtn.addEventListener("click", async () => {
+  // Helper: 날짜 선택 값 파싱
+  function getSelectedDateRange() {
     const selectedDates = datePickerInstance.selectedDates;
     if (!selectedDates || selectedDates.length === 0) {
-      alert("수집할 날짜를 달력에서 선택해 주세요.");
-      return;
+      alert("날짜를 달력에서 선택해 주세요.");
+      return null;
     }
 
     const formatDate = (d) => {
@@ -126,13 +127,47 @@ document.addEventListener("DOMContentLoaded", () => {
     const endDateStr = selectedDates.length > 1 ? formatDate(selectedDates[1]) : startDateStr;
     const maxItems = parseInt(maxItemsSelect.value, 10) || 20;
 
-    setUiRunningState(true);
+    return { startDateStr, endDateStr, maxItems };
+  }
+
+  // 4-1. [기사 수집 (DB 저장)] 버튼 이벤트
+  collectBtn.addEventListener("click", async () => {
+    const range = getSelectedDateRange();
+    if (!range) return;
+
+    setUiRunningState(true, "collect");
 
     try {
       if (window.pywebview && window.pywebview.api) {
-        const startRes = await window.pywebview.api.start_pipeline(startDateStr, endDateStr, "", maxItems);
+        const startRes = await window.pywebview.api.start_collect(range.startDateStr, range.endDateStr, range.maxItems);
         if (!startRes.success) {
-          alert("실행 실패: " + startRes.error);
+          alert("수집 실패: " + startRes.error);
+          setUiRunningState(false);
+          return;
+        }
+        startStatusPolling();
+      } else {
+        alert("데스크톱 앱 환경에서 실행해 주세요.");
+        setUiRunningState(false);
+      }
+    } catch (e) {
+      alert("오류 발생: " + e.message);
+      setUiRunningState(false);
+    }
+  });
+
+  // 4-2. [AI 보고서 생성] 버튼 이벤트 (DB 우선 캐시 / 미존재 시 자동 수집 후 생성)
+  reportBtn.addEventListener("click", async () => {
+    const range = getSelectedDateRange();
+    if (!range) return;
+
+    setUiRunningState(true, "report");
+
+    try {
+      if (window.pywebview && window.pywebview.api) {
+        const startRes = await window.pywebview.api.start_report(range.startDateStr, range.endDateStr, range.maxItems);
+        if (!startRes.success) {
+          alert("보고서 생성 실패: " + startRes.error);
           setUiRunningState(false);
           return;
         }
@@ -349,15 +384,28 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // UI 상태 토글
-  function setUiRunningState(isRunning) {
-    runBtn.disabled = isRunning;
+  function setUiRunningState(isRunning, operationType = "") {
+    if (collectBtn) collectBtn.disabled = isRunning;
+    if (reportBtn) reportBtn.disabled = isRunning;
     progressWrap.style.display = isRunning ? "flex" : "none";
+
     if (isRunning) {
-      runBtn.querySelector(".btn-text").textContent = "수집 & 분석 중...";
-      runBtn.querySelector(".btn-icon").textContent = "⏳";
+      if (operationType === "collect" && collectBtn) {
+        collectBtn.querySelector(".btn-text").textContent = "수집 진행 중...";
+        collectBtn.querySelector(".btn-icon").textContent = "⏳";
+      } else if (operationType === "report" && reportBtn) {
+        reportBtn.querySelector(".btn-text").textContent = "보고서 작성 중...";
+        reportBtn.querySelector(".btn-icon").textContent = "⏳";
+      }
     } else {
-      runBtn.querySelector(".btn-text").textContent = "수집 & AI 보고서 생성";
-      runBtn.querySelector(".btn-icon").textContent = "🚀";
+      if (collectBtn) {
+        collectBtn.querySelector(".btn-text").textContent = "기사 수집 (DB 저장)";
+        collectBtn.querySelector(".btn-icon").textContent = "📥";
+      }
+      if (reportBtn) {
+        reportBtn.querySelector(".btn-text").textContent = "AI 보고서 생성";
+        reportBtn.querySelector(".btn-icon").textContent = "📑";
+      }
     }
   }
 
