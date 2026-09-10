@@ -1,5 +1,6 @@
-/**
+﻿/**
  * 프론트엔드 인터랙션 및 pywebview 통신 스크립트 (app.js)
+ * 3열 대시보드 및 AI 비서 챗봇 실시간 지시 연동
  */
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -12,6 +13,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const maxItemsSelect = document.getElementById("max-items");
   const runBtn = document.getElementById("run-btn");
   const appStatusBadge = document.getElementById("app-status-badge");
+  const dbStatBadge = document.getElementById("db-stat-badge");
 
   const progressWrap = document.getElementById("progress-wrap");
   const progressMsg = document.getElementById("progress-msg");
@@ -32,10 +34,21 @@ document.addEventListener("DOMContentLoaded", () => {
   const copyReportBtn = document.getElementById("copy-report-btn");
   const openFileBtn = document.getElementById("open-file-btn");
 
-  // 1. Flatpickr 달력 초기화 (오늘 날짜 기본 설정, 한국어, 범위 모드)
-  const today = new Date();
-  const todayStr = today.toISOString().split("T")[0];
+  // 챗봇 요소
+  const chatMessages = document.getElementById("chat-messages");
+  const chatForm = document.getElementById("chat-form");
+  const chatInput = document.getElementById("chat-input");
+  const clearChatBtn = document.getElementById("clear-chat-btn");
+  const initialChatTime = document.getElementById("initial-chat-time");
 
+  // 1. 초기 시간 표시
+  const now = new Date();
+  if (initialChatTime) {
+    initialChatTime.textContent = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+  }
+
+  // 2. Flatpickr 달력 초기화
+  const todayStr = now.toISOString().split("T")[0];
   datePickerInstance = flatpickr(dateInput, {
     mode: "range",
     locale: "ko",
@@ -43,12 +56,46 @@ document.addEventListener("DOMContentLoaded", () => {
     defaultDate: [todayStr, todayStr],
     maxDate: todayStr,
     showMonths: 1,
-    onChange: function (selectedDates, dateStr, instance) {
-      // 날짜 선택 시 처리
-    }
   });
 
-  // 2. [뉴스 수집 & AI 보고서 생성] 원클릭 실행
+  // 3. 앱 초기화 (DB 통계 및 대화 히스토리 로드)
+  setTimeout(async () => {
+    if (window.pywebview && window.pywebview.api) {
+      await refreshDbStats();
+      await loadChatHistory();
+    }
+  }, 300);
+
+  async function refreshDbStats() {
+    try {
+      if (window.pywebview && window.pywebview.api) {
+        const stats = await window.pywebview.api.get_db_stats();
+        if (stats && dbStatBadge) {
+          dbStatBadge.textContent = `DB 누적: ${stats.total_articles || 0}건`;
+        }
+      }
+    } catch (e) {
+      console.warn("DB 통계 조회 실패:", e);
+    }
+  }
+
+  async function loadChatHistory() {
+    try {
+      if (window.pywebview && window.pywebview.api) {
+        const res = await window.pywebview.api.get_chat_history();
+        if (res && res.history && res.history.length > 0) {
+          chatMessages.innerHTML = "";
+          res.history.forEach(msg => {
+            appendChatMessage(msg.role, msg.content);
+          });
+        }
+      }
+    } catch (e) {
+      console.warn("챗 히스토리 로드 실패:", e);
+    }
+  }
+
+  // 4. [수집 & AI 보고서 생성] 원클릭 실행
   runBtn.addEventListener("click", async () => {
     const selectedDates = datePickerInstance.selectedDates;
     if (!selectedDates || selectedDates.length === 0) {
@@ -64,27 +111,22 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     const startDateStr = formatDate(selectedDates[0]);
-    // 단일 날짜 선택 시(1개만 클릭한 경우) 시작일과 종료일을 동일하게 설정
     const endDateStr = selectedDates.length > 1 ? formatDate(selectedDates[1]) : startDateStr;
-
-    const query = "";
     const maxItems = parseInt(maxItemsSelect.value, 10) || 20;
 
-    // UI 비활성화 및 진행 표시
     setUiRunningState(true);
 
     try {
       if (window.pywebview && window.pywebview.api) {
-        const startRes = await window.pywebview.api.start_pipeline(startDateStr, endDateStr, query, maxItems);
+        const startRes = await window.pywebview.api.start_pipeline(startDateStr, endDateStr, "", maxItems);
         if (!startRes.success) {
           alert("실행 실패: " + startRes.error);
           setUiRunningState(false);
           return;
         }
-        // 상태 폴링 시작 (400ms 주기)
         startStatusPolling();
       } else {
-        alert("pywebview 백엔드와 연결되지 않았습니다. 데스크톱 앱 창에서 실행해 주세요.");
+        alert("데스크톱 앱 환경에서 실행해 주세요.");
         setUiRunningState(false);
       }
     } catch (e) {
@@ -93,7 +135,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // 3. 상태 폴링 함수
+  // 5. 상태 폴링
   function startStatusPolling() {
     if (pollInterval) clearInterval(pollInterval);
 
@@ -109,14 +151,13 @@ document.addEventListener("DOMContentLoaded", () => {
         progressBarFill.style.width = `${pct}%`;
 
         if (status.step === "scraping") {
-          appStatusBadge.textContent = "뉴스 수집 중";
+          appStatusBadge.textContent = "기사 수집 및 DB 적재 중";
           appStatusBadge.className = "badge primary";
         } else if (status.step === "reporting") {
           appStatusBadge.textContent = "AI 보고서 작성 중";
           appStatusBadge.className = "badge secondary";
         }
 
-        // 완료 또는 에러 처리
         if (!status.is_running) {
           clearInterval(pollInterval);
           pollInterval = null;
@@ -125,6 +166,7 @@ document.addEventListener("DOMContentLoaded", () => {
             appStatusBadge.textContent = "작업 완료";
             appStatusBadge.className = "badge secondary";
             await loadAndRenderResults();
+            await refreshDbStats();
           } else if (status.step === "error") {
             appStatusBadge.textContent = "오류 발생";
             appStatusBadge.className = "badge info";
@@ -139,7 +181,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 400);
   }
 
-  // 4. 결과 로드 및 렌더링
+  // 6. 결과 렌더링
   async function loadAndRenderResults() {
     try {
       const data = await window.pywebview.api.get_results();
@@ -150,29 +192,26 @@ document.addEventListener("DOMContentLoaded", () => {
       const csvPath = data.csv_path || "";
       const period = data.period || "-";
 
-      // 1) 통계 요약 갱신
       articleCountBadge.textContent = `${articles.length}건`;
       statPeriod.textContent = period;
       statCsv.textContent = csvPath ? csvPath.split("\\").pop() : "-";
       statCsv.title = csvPath;
 
-      // 2) 기사 테이블 렌더링
+      // 테이블 렌더링
       if (articles.length === 0) {
-        newsTbody.innerHTML = `<tr><td colspan="5" class="empty-cell">지정된 기간 내 수집된 기사가 없습니다.</td></tr>`;
+        newsTbody.innerHTML = `<tr><td colspan="4" class="empty-cell">지정된 기간 내 수집된 IT/과학 기사가 없습니다.</td></tr>`;
       } else {
         let rowsHtml = "";
         articles.forEach((art, idx) => {
           const title = art.title || "제목 없음";
           const press = art.press || "-";
           const link = art.link || art.originallink || "#";
-          const pubDate = art.pubDate ? art.pubDate.replace("+0900", "") : "-";
 
           rowsHtml += `
             <tr>
               <td>${idx + 1}</td>
               <td title="${title}"><strong>${title}</strong></td>
               <td>${press}</td>
-              <td style="font-size: 11px; color: #94a3b8;">${pubDate}</td>
               <td>
                 <a href="${link}" target="_blank" class="table-link-btn" title="원문 보기">보기</a>
               </td>
@@ -182,7 +221,7 @@ document.addEventListener("DOMContentLoaded", () => {
         newsTbody.innerHTML = rowsHtml;
       }
 
-      // 3) 마크다운 보고서 렌더링
+      // 보고서 렌더링
       if (report && report.report_md) {
         reportEmpty.style.display = "none";
         reportContent.style.display = "block";
@@ -196,20 +235,79 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // 7. 챗봇 대화 인터랙션
+  chatForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const text = chatInput.value.trim();
+    if (!text) return;
+
+    chatInput.value = "";
+    appendChatMessage("user", text);
+
+    // AI 응답 요청
+    try {
+      if (window.pywebview && window.pywebview.api) {
+        const res = await window.pywebview.api.send_chat(text);
+        if (res && res.success) {
+          appendChatMessage("assistant", res.reply);
+        } else {
+          appendChatMessage("assistant", "응답 오류: " + (res.error || "알 수 없는 오류"));
+        }
+      }
+    } catch (err) {
+      appendChatMessage("assistant", "전송 실패: " + err.message);
+    }
+  });
+
+  function appendChatMessage(role, content) {
+    const isUser = role === "user";
+    const msgDiv = document.createElement("div");
+    msgDiv.className = `msg ${isUser ? "outgoing" : "incoming"}`;
+
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    msgDiv.innerHTML = `
+      <div class="msg-bubble">${escapeHtml(content)}</div>
+      <span class="msg-time">${timeStr}</span>
+    `;
+
+    chatMessages.appendChild(msgDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement("div");
+    div.innerText = text;
+    return div.innerHTML;
+  }
+
+  clearChatBtn.addEventListener("click", async () => {
+    if (confirm("AI 비서와의 대화 내역을 초기화하시겠습니까?")) {
+      if (window.pywebview && window.pywebview.api) {
+        await window.pywebview.api.clear_chat_history();
+        chatMessages.innerHTML = `
+          <div class="msg incoming">
+            <div class="msg-bubble">대화 내역이 초기화되었습니다. 새로운 분석 지시사항을 말씀해 주세요!</div>
+          </div>
+        `;
+      }
+    }
+  });
+
   // UI 상태 토글
   function setUiRunningState(isRunning) {
     runBtn.disabled = isRunning;
     progressWrap.style.display = isRunning ? "flex" : "none";
     if (isRunning) {
-      runBtn.querySelector(".btn-text").textContent = "수집 및 AI 분석 중...";
+      runBtn.querySelector(".btn-text").textContent = "수집 & 분석 중...";
       runBtn.querySelector(".btn-icon").textContent = "⏳";
     } else {
-      runBtn.querySelector(".btn-text").textContent = "뉴스 수집 & AI 보고서 생성";
+      runBtn.querySelector(".btn-text").textContent = "수집 & AI 보고서 생성";
       runBtn.querySelector(".btn-icon").textContent = "🚀";
     }
   }
 
-  // 5. 폴더 및 파일 열기 버튼
+  // 유틸리티 버튼
   openDataBtn.addEventListener("click", async () => {
     if (window.pywebview && window.pywebview.api) {
       await window.pywebview.api.open_folder("data");
@@ -232,12 +330,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // 6. 마크다운 복사
   copyReportBtn.addEventListener("click", async () => {
     if (currentReportData && currentReportData.report && currentReportData.report.report_md) {
       try {
         await navigator.clipboard.writeText(currentReportData.report.report_md);
-        alert("📋 마크다운 보고서 내용이 클립보드에 복사되었습니다!");
+        alert("📋 마크다운 보고서가 클립보드에 복사되었습니다!");
       } catch (e) {
         alert("복사 실패: " + e.message);
       }

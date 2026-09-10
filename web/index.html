@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>네이버 뉴스 IT/과학 AI 브리핑 시스템</title>
+  <title>네이버 뉴스 IT/과학 AI 브리핑 시스템 & DB 아카이브</title>
   <!-- Flatpickr 모던 캘린더 CSS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_blue.css">
@@ -17,12 +17,13 @@
         <span class="brand-icon">🔬</span>
         <div class="brand-text">
           <h1>네이버 뉴스 [IT/과학] AI 브리핑 시스템</h1>
-          <p>네이버 IT/과학 섹션(sid1=105) 전체 최신순 수집 & gpt-5.6-luna 3대 카테고리 심층 분석</p>
+          <p>IT/과학(섹션 105) 전체 수집 &bull; SQLite DB 아카이브 &bull; gpt-5.6-luna 맞춤형 보고서</p>
         </div>
       </div>
       <div class="header-badges">
         <span class="badge primary">gpt-5.6-luna</span>
         <span class="badge secondary">IT/과학 (섹션 105)</span>
+        <span class="badge success" id="db-stat-badge">DB 누적: 0건</span>
         <span class="badge info" id="app-status-badge">대기 중</span>
       </div>
     </header>
@@ -39,7 +40,7 @@
           </div>
         </div>
 
-        <!-- 2. 수집 카테고리 (IT/과학 고정 안내) -->
+        <!-- 2. 수집 카테고리 -->
         <div class="form-group category-group">
           <label>🌐 수집 카테고리</label>
           <div class="category-display-box">
@@ -63,7 +64,7 @@
         <div class="form-group action-group">
           <button type="button" id="run-btn" class="btn primary-btn">
             <span class="btn-icon">🚀</span>
-            <span class="btn-text">IT/과학 뉴스 수집 & AI 보고서 생성</span>
+            <span class="btn-text">수집 & AI 보고서 생성</span>
           </button>
         </div>
       </div>
@@ -80,26 +81,26 @@
       </div>
     </section>
 
-    <!-- 메인 대시보드 2열 뷰 -->
-    <main class="dashboard-main">
-      <!-- 좌측: 수집된 뉴스 목록 및 CSV 테이블 -->
+    <!-- 메인 대시보드 3열 워크스페이스 -->
+    <main class="dashboard-main-3col">
+      <!-- 1열(좌): 수집된 뉴스 목록 및 테이블 -->
       <section class="panel left-panel">
         <div class="panel-header">
           <div class="panel-title-box">
             <span class="panel-icon">📰</span>
-            <h2>[IT/과학] 수집 기사 목록</h2>
+            <h2>[IT/과학] 수집 기사</h2>
             <span class="count-badge" id="article-count-badge">0건</span>
           </div>
           <div class="panel-actions">
-            <button type="button" class="btn small-btn" id="open-data-btn" title="CSV 파일이 저장된 폴더 열기">
-              📁 CSV 폴더
+            <button type="button" class="btn small-btn" id="open-data-btn" title="CSV 및 DB 폴더 열기">
+              📁 데이터 폴더
             </button>
           </div>
         </div>
 
         <div class="stats-summary" id="stats-summary">
           <div class="stat-card">
-            <span class="stat-label">조회 기간</span>
+            <span class="stat-label">수집 기간</span>
             <span class="stat-value" id="stat-period">-</span>
           </div>
           <div class="stat-card">
@@ -112,24 +113,23 @@
           <table class="news-table" id="news-table">
             <thead>
               <tr>
-                <th style="width: 45px;">#</th>
+                <th style="width: 38px;">#</th>
                 <th>기사 제목</th>
-                <th style="width: 90px;">언론사</th>
-                <th style="width: 130px;">발행일시</th>
-                <th style="width: 60px;">링크</th>
+                <th style="width: 75px;">언론사</th>
+                <th style="width: 50px;">원문</th>
               </tr>
             </thead>
             <tbody id="news-tbody">
               <tr>
-                <td colspan="5" class="empty-cell">상단에서 날짜를 선택하고 [IT/과학 뉴스 수집 & AI 보고서 생성] 버튼을 눌러주세요.</td>
+                <td colspan="4" class="empty-cell">상단에서 날짜를 선택하고 [수집 & AI 보고서 생성] 버튼을 눌러주세요.</td>
               </tr>
             </tbody>
           </table>
         </div>
       </section>
 
-      <!-- 우측: AI 마크다운 보고서 뷰어 -->
-      <section class="panel right-panel">
+      <!-- 2열(중앙): AI 마크다운 보고서 뷰어 -->
+      <section class="panel center-panel">
         <div class="panel-header">
           <div class="panel-title-box">
             <span class="panel-icon">📑</span>
@@ -140,9 +140,9 @@
               📋 복사
             </button>
             <button type="button" class="btn small-btn" id="open-file-btn" title="보고서 파일 기본 뷰어로 열기">
-              📄 파일 열기
+              📄 열기
             </button>
-            <button type="button" class="btn small-btn" id="open-reports-btn" title="보고서 저장 폴더 열기">
+            <button type="button" class="btn small-btn" id="open-reports-btn" title="보고서 폴더 열기">
               📁 폴더
             </button>
           </div>
@@ -152,12 +152,50 @@
           <div class="report-empty" id="report-empty">
             <div class="empty-icon">💡</div>
             <h3>생성된 AI 보고서가 없습니다</h3>
-            <p>네이버 뉴스 IT/과학 기사가 수집되면 <b>gpt-5.6-luna</b>가 기사를 읽고<br>
-            <b>[AI 긍정 / AI 부정 / 기타 과학기술]</b> 3대 카테고리로 분석한 보고서를 이곳에 출력합니다.</p>
+            <p>기사가 수집되면 우측 <b>AI 비서에게 지시한 사항</b>을 종합하여<br>
+            <b>[AI 긍정 / AI 부정 / 기타 과학기술]</b> 보고서를 이곳에 출력합니다.</p>
           </div>
           <div class="markdown-body" id="report-content" style="display: none;"></div>
         </div>
       </section>
+
+      <!-- 3열(우): 사용자 맞춤 지시사항 AI 챗봇 사이드바 -->
+      <aside class="panel chat-sidebar">
+        <div class="panel-header">
+          <div class="panel-title-box">
+            <span class="panel-icon">🧑‍💼</span>
+            <h2>AI 브리핑 비서</h2>
+            <span class="sidebar-status-tag">지시사항 반영 모드</span>
+          </div>
+          <div class="panel-actions">
+            <button type="button" class="icon-btn" id="clear-chat-btn" title="대화 초기화">🗑️</button>
+          </div>
+        </div>
+
+        <div class="chat-banner">
+          💡 챗봇에게 <b>"보안 사고를 집중 조명해줘"</b>, <b>"스타트업 투자 관점에서 시사점을 써줘"</b> 등의 요청사항을 남기시면 보고서 생성 시 문서에 즉시 자동 반영됩니다.
+        </div>
+
+        <div class="chat-messages" id="chat-messages">
+          <div class="msg incoming">
+            <div class="msg-bubble">
+              안녕하세요! IT/과학 테크 브리핑 AI 비서입니다. 이번 보고서에서 <b>특별히 강조하고 싶은 분야, 특정 기업 이슈, 또는 시사점 분석 관점</b>이 있으시면 편하게 말씀해 주세요!
+            </div>
+            <span class="msg-time" id="initial-chat-time"></span>
+          </div>
+        </div>
+
+        <div class="chat-input-area">
+          <form id="chat-form" autocomplete="off">
+            <input type="text" id="chat-input" placeholder="보고서 추가 요청/지시사항 입력..." required />
+            <button type="submit" id="chat-send-btn" title="전송">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+              </svg>
+            </button>
+          </form>
+        </div>
+      </aside>
     </main>
   </div>
 
