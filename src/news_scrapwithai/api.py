@@ -115,12 +115,9 @@ class NewsAppApi:
 
             self.articles = df_news.to_dict(orient="records")
 
-            # DB 영구 적재 (INSERT OR IGNORE)
+            # DB 영구 적재 (INSERT OR IGNORE) - CSV는 사용자가 원할 때만 온디맨드 내보내기
             inserted, skipped = self.db.save_articles(self.articles)
-
-            # CSV 저장
-            csv_path = self.collector.save_csv(df_news, dt_start, dt_end)
-            self.last_csv_path = str(csv_path)
+            self.last_csv_path = ""
 
             self.status.update({
                 "is_running": False,
@@ -225,8 +222,7 @@ class NewsAppApi:
 
                 self.articles = df_news.to_dict(orient="records")
                 inserted, skipped = self.db.save_articles(self.articles)
-                csv_path = self.collector.save_csv(df_news, dt_start, dt_end)
-                self.last_csv_path = str(csv_path)
+                self.last_csv_path = ""
 
             # 3. AI 보고서 작성
             self.status.update({
@@ -514,3 +510,45 @@ class NewsAppApi:
     def open_file(self, file_path: str = "") -> Dict[str, Any]:
         """특정 파일 시스템 열기 (open_report_file 위임)"""
         return self.open_report_file(file_path)
+
+    def export_articles_csv(self) -> Dict[str, Any]:
+        """현재 로드된 기사 목록을 reports/ 폴더에 utf-8-sig CSV(6개 고정 규격 컬럼)로 온디맨드 내보내기"""
+        if not self.articles:
+            # 현재 화면에 기사가 없다면 DB의 최근 기사 조회 시도
+            self.articles = self.db.get_recent_articles(50)
+            if not self.articles:
+                return {"success": False, "error": "내보낼 기사 데이터가 없습니다. 먼저 기사를 수집해 주세요."}
+
+        try:
+            import pandas as pd
+            from news_scrapwithai.config import REPORTS_DIR
+            from news_scrapwithai.scraper import NEWS_COLUMNS
+
+            df = pd.DataFrame(self.articles)
+            # dataframe-column-modification-rule 준수: 6개 고정 컬럼 엄격 유지
+            for col in NEWS_COLUMNS:
+                if col not in df.columns:
+                    df[col] = ""
+            df = df[NEWS_COLUMNS]
+
+            period_label = (self.start_date_str or "기사모음").replace("-", "")
+            if self.end_date_str and self.end_date_str != self.start_date_str:
+                period_label += f"_{self.end_date_str.replace('-', '')}"
+
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"IT과학_뉴스_{period_label}_{timestamp}.csv"
+            file_path = REPORTS_DIR / filename
+
+            df.to_csv(file_path, index=False, encoding="utf-8-sig")
+            self.last_csv_path = str(file_path)
+
+            return {
+                "success": True,
+                "file_path": str(file_path),
+                "filename": filename,
+                "count": len(df),
+                "message": f"기사 {len(df)}건을 '{filename}' 파일로 저장했습니다.",
+            }
+        except Exception as e:
+            return {"success": False, "error": f"CSV 내보내기 실패: {e}"}
+

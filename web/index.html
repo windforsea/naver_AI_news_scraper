@@ -67,8 +67,11 @@
             <option value="10">10건 (고속 테스트)</option>
             <option value="20" selected>20건 (권장)</option>
             <option value="30">30건 (심층 분석)</option>
-            <option value="50">50건 (대량 수집)</option>
-            <option value="100">100건 (최대)</option>
+            <option value="50">50건 (대량 분석)</option>
+            <option value="100">100건 (최대 분석)</option>
+            <option value="200">200건 (수집용)</option>
+            <option value="500">500건 (수집용)</option>
+            <option value="1000">1000건 (수집용)</option>
           </select>
         </div>
 
@@ -108,8 +111,8 @@
             <span class="count-badge" id="article-count-badge">0건</span>
           </div>
           <div class="panel-actions">
-            <button type="button" class="btn glass-btn small-btn" id="open-data-btn" title="CSV 및 DB 폴더 열기">
-              📁 데이터 폴더
+            <button type="button" class="btn glass-btn small-btn" id="export-csv-btn" title="현재 기사 목록을 reports/ 폴더에 CSV 파일로 내보내기">
+              📊 CSV 내보내기
             </button>
           </div>
         </div>
@@ -120,8 +123,8 @@
             <span class="stat-value" id="stat-period">-</span>
           </div>
           <div class="stat-card">
-            <span class="stat-label">저장 파일</span>
-            <span class="stat-value truncate" id="stat-csv">-</span>
+            <span class="stat-label">DB 보관 상태</span>
+            <span class="stat-value truncate" id="stat-db-status">동기화 완료</span>
           </div>
         </div>
 

@@ -23,7 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const articleCountBadge = document.getElementById("article-count-badge");
   const statPeriod = document.getElementById("stat-period");
-  const statCsv = document.getElementById("stat-csv");
+  const statDbStatus = document.getElementById("stat-db-status");
   const newsTbody = document.getElementById("news-tbody");
 
   const reportContainer = document.getElementById("report-container");
@@ -39,7 +39,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const reportTreeCount = document.getElementById("report-tree-count");
   const treeToggleBtn = document.getElementById("tree-toggle-btn");
 
-  const openDataBtn = document.getElementById("open-data-btn");
+  const exportCsvBtn = document.getElementById("export-csv-btn");
   const openReportsBtn = document.getElementById("open-reports-btn");
   const openFileBtn = document.getElementById("open-file-btn");
 
@@ -448,12 +448,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function renderArticles(articles = [], period = "-", csvPath = "") {
+  function renderArticles(articles = [], period = "-") {
     articleCountBadge.textContent = `${articles.length}건`;
     if (period && period !== "-") statPeriod.textContent = period;
-    if (csvPath) {
-      statCsv.textContent = csvPath.split("\\").pop();
-      statCsv.title = csvPath;
+    if (statDbStatus) {
+      statDbStatus.textContent = articles.length > 0 ? `DB ${articles.length}건 보관` : "-";
     }
 
     if (articles.length === 0) {
@@ -592,11 +591,24 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // 유틸리티 버튼
-  openDataBtn.addEventListener("click", async () => {
-    if (window.pywebview && window.pywebview.api) {
-      await window.pywebview.api.open_folder("data");
-    }
-  });
+  if (exportCsvBtn) {
+    exportCsvBtn.addEventListener("click", async () => {
+      try {
+        if (window.pywebview && window.pywebview.api) {
+          const res = await window.pywebview.api.export_articles_csv();
+          if (res && res.success) {
+            alert(`✅ ${res.message}\n(저장 폴더: reports/)`);
+          } else {
+            alert("CSV 내보내기 실패: " + (res?.error || "오류"));
+          }
+        } else {
+          alert("데스크톱 앱 환경에서 실행해 주세요.");
+        }
+      } catch (e) {
+        alert("CSV 내보내기 오류: " + e.message);
+      }
+    });
+  }
 
   openReportsBtn.addEventListener("click", async () => {
     if (window.pywebview && window.pywebview.api) {

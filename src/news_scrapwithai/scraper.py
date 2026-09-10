@@ -1,4 +1,4 @@
-﻿"""
+"""
 네이버 뉴스 IT/과학 카테고리(sid1=105) 전체 및 검색 수집기 (scraper.py)
 """
 
@@ -15,7 +15,7 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
-from news_scrapwithai.config import DATA_DIR, get_naver_credentials
+from news_scrapwithai.config import DATA_DIR, REPORTS_DIR, get_naver_credentials
 
 # KST 타임존 (+09:00)
 KST = timezone(timedelta(hours=9))
@@ -125,7 +125,8 @@ class NaverNewsCollector:
         for cur_date in date_list:
             date_str = cur_date.strftime("%Y%m%d")
             page = 1
-            max_pages_for_date = 10  # 날짜당 최대 10페이지 탐색 (1페이지당 20건)
+            # 건수에 따라 충분한 페이지 탐색 (1페이지당 약 20건, 1000건 시 최대 60페이지)
+            max_pages_for_date = max(10, (max_target // 18) + 5)
 
             while page <= max_pages_for_date and len(results) < max_target:
                 url = f"https://news.naver.com/main/list.naver?mode=LSD&mid=sec&sid1=105&date={date_str}&page={page}"
@@ -223,6 +224,6 @@ class NaverNewsCollector:
             date_str = f"{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}"
 
         filename = f"IT과학_뉴스_{date_str}.csv"
-        file_path = DATA_DIR / filename
+        file_path = REPORTS_DIR / filename
         df.to_csv(file_path, index=False, encoding="utf-8-sig")
         return file_path

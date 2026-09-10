@@ -148,6 +148,19 @@ class NewsDatabase:
             rows = cursor.fetchall()
             return [dict(r) for r in rows]
 
+    def get_recent_articles(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """최근 수집된 기사들을 최신순으로 조회"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, title, content, link, originallink, pub_date as pubDate, press, category, collected_at
+                FROM articles
+                ORDER BY pub_date DESC, id DESC
+                LIMIT ?;
+            """, (limit,))
+            rows = cursor.fetchall()
+            return [dict(r) for r in rows]
+
     def save_report(
         self,
         title: str,
