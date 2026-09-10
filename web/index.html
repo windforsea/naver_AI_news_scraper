@@ -144,7 +144,7 @@
         </div>
       </section>
 
-      <!-- 2열(중앙): AI 마크다운 보고서 뷰어 -->
+      <!-- 2열(중앙): AI 마크다운 보고서 뷰어 및 브리핑 파일 보관함 -->
       <section class="panel center-panel glass-panel">
         <div class="panel-header">
           <div class="panel-title-box">
@@ -153,12 +153,12 @@
             <span class="mode-tag" id="report-mode-tag">기본 브리핑</span>
           </div>
           <div class="panel-actions">
-            <select id="report-history-select" class="glass-select small-select" title="이전에 생성된 보고서 이력 선택">
-              <option value="">📂 이전 보고서 목록...</option>
-            </select>
-            <button type="button" class="btn glass-btn small-btn" id="copy-report-btn" title="마크다운 텍스트 복사">
-              📋 복사
-            </button>
+            <!-- 폰트 글자 크기 조절 -->
+            <div class="font-zoom-ctrl" title="보고서 본문 글자 크기 조절">
+              <button type="button" class="btn glass-btn zoom-btn" id="font-decrease-btn" title="글자 작게 (A-)">A-</button>
+              <span class="font-zoom-level" id="font-zoom-level">100%</span>
+              <button type="button" class="btn glass-btn zoom-btn" id="font-increase-btn" title="글자 크게 (A+)">A+</button>
+            </div>
             <button type="button" class="btn glass-btn small-btn" id="open-file-btn" title="보고서 파일 기본 뷰어로 열기">
               📄 열기
             </button>
@@ -168,14 +168,32 @@
           </div>
         </div>
 
-        <div class="report-container custom-scrollbar" id="report-container">
-          <div class="report-empty" id="report-empty">
-            <div class="empty-icon-box">📑</div>
-            <h3>생성된 AI 보고서가 없습니다</h3>
-            <p>상단에서 <b>[기사 수집]</b>으로 DB에 적재하거나 <b>[AI 보고서 생성]</b>을 누르시면<br>
-            선택 기간의 기사 및 우측 AI 비서 지시사항을 종합한 보고서가 이곳에 출력됩니다.</p>
+        <div class="report-workspace">
+          <!-- 좌측: 보고서 파일 탐색기 서브 사이드바 -->
+          <aside class="report-file-tree" id="report-file-tree">
+            <div class="file-tree-header">
+              <div class="tree-header-info">
+                <span class="tree-header-icon">📁</span>
+                <span class="file-tree-title">브리핑 보관함</span>
+                <span class="count-badge tiny" id="report-tree-count">0</span>
+              </div>
+              <button type="button" class="tree-toggle-btn" id="tree-toggle-btn" title="보관함 접기/펼치기">◀</button>
+            </div>
+            <div class="file-tree-list custom-scrollbar" id="report-file-list">
+              <!-- JS 동적 렌더링 -->
+            </div>
+          </aside>
+
+          <!-- 우측: 보고서 뷰어 본문 -->
+          <div class="report-container custom-scrollbar" id="report-container">
+            <div class="report-empty" id="report-empty">
+              <div class="empty-icon-box">📑</div>
+              <h3>생성된 AI 보고서가 없습니다</h3>
+              <p>상단에서 <b>[기사 수집]</b>으로 DB에 적재하거나 <b>[AI 보고서 생성]</b>을 누르시면<br>
+              선택 기간의 기사 및 우측 AI 비서 지시사항을 종합한 보고서가 이곳에 출력됩니다.</p>
+            </div>
+            <div class="markdown-body" id="report-content" style="display: none;"></div>
           </div>
-          <div class="markdown-body" id="report-content" style="display: none;"></div>
         </div>
       </section>
 

@@ -36,6 +36,9 @@
   --radius-pill: 9999px;
   --radius-card: 16px;
   --radius-sub: 10px;
+
+  /* 보고서 폰트 스케일 */
+  --report-font-scale: 1;
 }
 
 * {
@@ -454,7 +457,7 @@ body {
    ========================================================================== */
 .dashboard-main-3col {
   display: grid;
-  grid-template-columns: 1fr 1.25fr 0.95fr;
+  grid-template-columns: minmax(230px, 0.8fr) minmax(0, 1.95fr) minmax(230px, 0.75fr);
   gap: 12px;
   flex: 1;
   min-height: 0;
@@ -551,6 +554,49 @@ body {
 .glass-select option {
   background: #091430;
   color: #ffffff;
+}
+
+/* 폰트 줌 컨트롤러 */
+.font-zoom-ctrl {
+  display: flex;
+  align-items: center;
+  background: rgba(10, 24, 56, 0.85);
+  border: 1px solid rgba(186, 230, 254, 0.25);
+  border-radius: var(--radius-sub);
+  overflow: hidden;
+  height: 25px;
+}
+
+.zoom-btn {
+  background: transparent;
+  border: none;
+  color: #bae6fd;
+  padding: 0 7px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.zoom-btn:hover {
+  background: rgba(56, 189, 248, 0.25);
+  color: #ffffff;
+}
+
+.font-zoom-level {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #7dd3fc;
+  padding: 0 5px;
+  min-width: 38px;
+  text-align: center;
+  border-left: 1px solid rgba(186, 230, 254, 0.15);
+  border-right: 1px solid rgba(186, 230, 254, 0.15);
+  user-select: none;
 }
 
 .glass-btn {
@@ -678,11 +724,179 @@ body {
   box-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
 }
 
+/* 중앙 보고서 작업 공간 (탐색기 + 뷰어) */
+.report-workspace {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+/* 보고서 파일 탐색기 서브 사이드바 */
+.report-file-tree {
+  width: 220px;
+  background: rgba(7, 16, 38, 0.75);
+  border-right: 1px solid var(--glass-border);
+  display: flex;
+  flex-direction: column;
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.report-file-tree.collapsed {
+  width: 38px;
+}
+
+.file-tree-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(186, 230, 254, 0.12);
+  background: rgba(12, 26, 62, 0.6);
+  flex-shrink: 0;
+  height: 38px;
+}
+
+.tree-header-info {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.report-file-tree.collapsed .tree-header-info {
+  display: none;
+}
+
+.tree-header-icon {
+  font-size: 13px;
+}
+
+.file-tree-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #bae6fd;
+}
+
+.count-badge.tiny {
+  font-size: 9.5px;
+  padding: 0 5px;
+  line-height: 15px;
+}
+
+.tree-toggle-btn {
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  color: #38bdf8;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 10px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.tree-toggle-btn:hover {
+  background: rgba(56, 189, 248, 0.3);
+  color: #ffffff;
+}
+
+.file-tree-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+
+.report-file-tree.collapsed .file-tree-list {
+  display: none;
+}
+
+.report-file-card {
+  padding: 8px 10px;
+  border-radius: var(--radius-sub);
+  background: rgba(15, 30, 68, 0.45);
+  border: 1px solid rgba(186, 230, 254, 0.12);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+}
+
+.report-file-card:hover {
+  background: rgba(30, 58, 138, 0.38);
+  border-color: rgba(56, 189, 248, 0.4);
+  transform: translateX(2px);
+}
+
+.report-file-card.active {
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.3), rgba(37, 99, 235, 0.3));
+  border-color: #38bdf8;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
+}
+
+.file-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px;
+}
+
+.file-card-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #f1f5f9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-card-tag {
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.file-card-tag.custom {
+  background: rgba(168, 85, 247, 0.25);
+  color: #d8b4fe;
+  border: 1px solid rgba(168, 85, 247, 0.45);
+}
+
+.file-card-tag.standard {
+  background: rgba(56, 189, 248, 0.2);
+  color: #7dd3fc;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+}
+
+.file-card-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9.5px;
+  color: var(--text-muted);
+}
+
 /* 중앙 보고서 뷰어 */
 .report-container {
   flex: 1;
   overflow-y: auto;
-  padding: 16px 20px;
+  padding: 20px 26px;
   min-height: 0;
   background: rgba(6, 13, 30, 0.5);
 }
@@ -699,31 +913,31 @@ body {
 }
 
 .empty-icon-box {
-  font-size: 32px;
-  filter: drop-shadow(0 0 12px rgba(56, 189, 248, 0.4));
+  font-size: 36px;
+  filter: drop-shadow(0 0 14px rgba(56, 189, 248, 0.45));
 }
 
 .report-empty h3 {
-  font-size: 15px;
+  font-size: 16px;
   color: var(--text-primary);
 }
 
 .report-empty p {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
 }
 
-/* 마크다운 스타일 */
+/* 마크다운 스타일 (동적 글자 크기 스케일링 지원) */
 .markdown-body {
   color: #f1f5f9;
-  font-size: 13px;
-  line-height: 1.75;
+  font-size: calc(15px * var(--report-font-scale));
+  line-height: 1.8;
 }
 
 .markdown-body h1 {
-  font-size: 17px;
-  padding-bottom: 8px;
-  margin-bottom: 12px;
+  font-size: calc(19px * var(--report-font-scale));
+  padding-bottom: 9px;
+  margin-bottom: 14px;
   border-bottom: 1px solid var(--glass-border);
   background: linear-gradient(135deg, #ffffff 40%, #7dd3fc 100%);
   -webkit-background-clip: text;
@@ -731,23 +945,23 @@ body {
 }
 
 .markdown-body h2 {
-  font-size: 14px;
-  margin-top: 18px;
-  margin-bottom: 8px;
+  font-size: calc(16.5px * var(--report-font-scale));
+  margin-top: 22px;
+  margin-bottom: 10px;
   color: #38bdf8;
   border-left: 3px solid #0284c7;
-  padding-left: 8px;
+  padding-left: 10px;
 }
 
 .markdown-body h3 {
-  font-size: 13px;
-  margin-top: 12px;
-  margin-bottom: 5px;
+  font-size: calc(15px * var(--report-font-scale));
+  margin-top: 14px;
+  margin-bottom: 6px;
   color: #e0f2fe;
 }
 
 .markdown-body p {
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .markdown-body ul, .markdown-body ol {
