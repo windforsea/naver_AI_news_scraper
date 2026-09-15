@@ -98,13 +98,13 @@ class NaverNewsCollector:
         self,
         start_date: date,
         end_date: date,
-        max_target: int = 30,
+        target_per_day: int = 30,
         progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
         is_cancelled: Optional[Callable[[], bool]] = None,
     ) -> pd.DataFrame:
         """
         네이버 뉴스 [IT/과학] (sid1=105) 섹션의 기사를 날짜별 최신순으로 직접 수집합니다.
-        (선택된 기간 내 각 날짜별로 균등하게 최신순 기사 분배 수집)
+        (선택된 기간 내 각 날짜별로 target_per_day건씩 최신순 기사 수집)
         """
         # 최신 날짜부터 과거 날짜 순으로 날짜 리스트 생성
         date_list: List[date] = []
@@ -116,39 +116,28 @@ class NaverNewsCollector:
         results: List[Dict[str, Any]] = []
         seen_links = set()
 
+        total_days = max(1, len(date_list))
+        total_target = target_per_day * total_days
+
         if progress_callback:
             progress_callback({
                 "status": "start",
-                "message": f"네이버 뉴스 [IT/과학] 카테고리 기사 수집 시작 ({start_date} ~ {end_date})",
+                "message": f"네이버 뉴스 [IT/과학] 카테고리 기사 수집 시작 ({start_date} ~ {end_date}, 일자별 {target_per_day}건 / 총 {total_target}건 목표)",
                 "progress": 5,
             })
-
-        total_days = max(1, len(date_list))
-        base_target_per_day = max_target // total_days
-        remainder = max_target % total_days
-
-        # 각 날짜별 기본 할당량 계산 (최신 날짜부터 잔여분 1건씩 우선 배분)
-        day_targets: Dict[date, int] = {}
-        for i, d in enumerate(date_list):
-            day_targets[d] = base_target_per_day + (1 if i < remainder else 0)
-
-        rollover_quota = 0
 
         for cur_date in date_list:
             if is_cancelled and is_cancelled():
                 break
 
-            target_for_date = day_targets.get(cur_date, 0) + rollover_quota
-            if target_for_date <= 0 and len(results) >= max_target:
-                break
-
+            target_for_date = target_per_day
             collected_this_date = 0
             date_str = cur_date.strftime("%Y%m%d")
             page = 1
             # 건수에 따라 충분한 페이지 탐색 (1페이지당 약 20건)
             max_pages_for_date = max(10, (target_for_date // 18) + 5)
 
-            while page <= max_pages_for_date and collected_this_date < target_for_date and len(results) < max_target:
+            while page <= max_pages_for_date and collected_this_date < target_for_date:
                 if is_cancelled and is_cancelled():
                     break
 
@@ -171,7 +160,7 @@ class NaverNewsCollector:
                 for li in items:
                     if is_cancelled and is_cancelled():
                         break
-                    if collected_this_date >= target_for_date or len(results) >= max_target:
+                    if collected_this_date >= target_for_date:
                         break
 
                     title_tag = li.select_one("dt:not(.photo) a") or li.select_one("dt a")
@@ -215,10 +204,10 @@ class NaverNewsCollector:
                     collected_this_date += 1
 
                     if progress_callback:
-                        pct = min(90, int(10 + (len(results) / max_target) * 80))
+                        pct = min(90, int(10 + (len(results) / total_target) * 80))
                         progress_callback({
                             "status": "collecting",
-                            "message": f"IT/과학 기사 수집 중 ({cur_date.strftime('%m.%d')} {collected_this_date}/{target_for_date}건, 전체 {len(results)}/{max_target}건): {title[:18]}...",
+                            "message": f"IT/과학 기사 수집 중 ({cur_date.strftime('%m.%d')} {collected_this_date}/{target_for_date}건, 전체 {len(results)}/{total_target}건): {title[:18]}...",
                             "progress": pct,
                             "count": len(results),
                         })
@@ -235,13 +224,6 @@ class NaverNewsCollector:
 
                 page += 1
                 time.sleep(self.delay)
-
-            # 해당 날짜에서 채우지 못한 부족분은 다음 날짜로 이월 (Rollover)
-            deficit = target_for_date - collected_this_date
-            rollover_quota = max(0, deficit)
-
-            if len(results) >= max_target:
-                break
 
         df = pd.DataFrame(results, columns=NEWS_COLUMNS)
 
