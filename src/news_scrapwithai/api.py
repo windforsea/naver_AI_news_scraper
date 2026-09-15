@@ -110,7 +110,7 @@ class NewsAppApi:
             df_news = self.collector.collect_section_news(
                 start_date=dt_start,
                 end_date=dt_end,
-                max_target=max_items,
+                target_per_day=max_items,
                 progress_callback=progress_callback,
                 is_cancelled=lambda: self.stop_requested.is_set(),
             )
@@ -231,8 +231,11 @@ class NewsAppApi:
                 })
                 return
 
+            total_days = max(1, (dt_end - dt_start).days + 1)
+            total_target = max_items * total_days
+
             # 1. DB에서 해당 기간 기사 우선 조회 (Cache-First)
-            db_articles = self.db.get_articles_by_date_range(self.start_date_str, self.end_date_str, max_items)
+            db_articles = self.db.get_articles_by_date_range(self.start_date_str, self.end_date_str, total_target)
 
             if db_articles and len(db_articles) > 0:
                 self.articles = db_articles
@@ -243,7 +246,7 @@ class NewsAppApi:
                 self.status.update({
                     "step": "scraping",
                     "progress": 10,
-                    "message": "DB에 해당 기간 기사가 없어 네이버 뉴스 수집을 먼저 진행합니다...",
+                    "message": f"DB에 기사가 없어 네이버 뉴스에서 일자별 {max_items}건(총 {total_target}건) 수집을 먼저 진행합니다...",
                 })
 
                 def progress_callback(info: Dict[str, Any]):
@@ -254,7 +257,7 @@ class NewsAppApi:
                 df_news = self.collector.collect_section_news(
                     start_date=dt_start,
                     end_date=dt_end,
-                    max_target=max_items,
+                    target_per_day=max_items,
                     progress_callback=progress_callback,
                     is_cancelled=lambda: self.stop_requested.is_set(),
                 )
