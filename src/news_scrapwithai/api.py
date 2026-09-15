@@ -33,6 +33,8 @@ class NewsAppApi:
         self.end_date_str: str = ""
         self.active_instruction: Optional[str] = None  # 이번 보고서 생성에 반영될 활성 지시사항
 
+        self.stop_requested = threading.Event()  # 사용자 즉시 중단 이벤트 플래그
+
         # 진행 상태 추적 딕셔너리
         self.status = {
             "is_running": False,
@@ -42,6 +44,15 @@ class NewsAppApi:
             "article_count": 0,
             "error": "",
         }
+
+    def stop_process(self) -> Dict[str, Any]:
+        """사용자가 진행 중인 수집 또는 AI 보고서 작성을 즉시 중단하도록 요청합니다."""
+        if not self.status.get("is_running"):
+            return {"success": False, "message": "현재 진행 중인 작업이 없습니다."}
+
+        self.stop_requested.set()
+        self.status["message"] = "⏹️ 작업 중단을 요청 중입니다..."
+        return {"success": True, "message": "작업 중단이 요청되었습니다."}
 
     def start_collect(
         self,
@@ -55,6 +66,7 @@ class NewsAppApi:
         if self.status["is_running"]:
             return {"success": False, "error": "이미 다른 작업이 진행 중입니다."}
 
+        self.stop_requested.clear()
         self.start_date_str = start_date
         self.end_date_str = end_date
         self.last_report = None
@@ -100,8 +112,34 @@ class NewsAppApi:
                 end_date=dt_end,
                 max_target=max_items,
                 progress_callback=progress_callback,
+                is_cancelled=lambda: self.stop_requested.is_set(),
             )
 
+            # 1. 사용자에 의한 중단 처리
+            if self.stop_requested.is_set():
+                if df_news.empty:
+                    self.status.update({
+                        "is_running": False,
+                        "step": "stopped",
+                        "progress": 100,
+                        "message": "⏹️ 기사 수집이 사용자에 의해 중단되었습니다.",
+                        "article_count": 0,
+                    })
+                    self.articles = []
+                else:
+                    self.articles = df_news.to_dict(orient="records")
+                    inserted, skipped = self.db.save_articles(self.articles)
+                    self.last_csv_path = ""
+                    self.status.update({
+                        "is_running": False,
+                        "step": "stopped",
+                        "progress": 100,
+                        "message": f"⏹️ 기사 수집이 중단되었습니다. (중단 전까지 수집된 {len(self.articles)}건 DB 저장 완료: 신규 {inserted}건, 중복 {skipped}건)",
+                        "article_count": len(self.articles),
+                    })
+                return
+
+            # 2. 정상 완료 처리
             if df_news.empty:
                 self.status.update({
                     "is_running": False,
@@ -148,6 +186,7 @@ class NewsAppApi:
         if self.status["is_running"]:
             return {"success": False, "error": "이미 다른 작업이 진행 중입니다."}
 
+        self.stop_requested.clear()
         self.start_date_str = start_date
         self.end_date_str = end_date
         self.last_report = None
@@ -182,6 +221,16 @@ class NewsAppApi:
     def _run_report_worker(self, dt_start, dt_end, max_items: int) -> None:
         """AI 보고서 생성 백그라운드 워커 (DB 우선 캐시 / 미존재 시 자동 수집 및 DB 저장 후 작성)"""
         try:
+            if self.stop_requested.is_set():
+                self.status.update({
+                    "is_running": False,
+                    "step": "stopped",
+                    "progress": 100,
+                    "message": "⏹️ 보고서 생성이 시작 직후 중단되었습니다.",
+                    "article_count": 0,
+                })
+                return
+
             # 1. DB에서 해당 기간 기사 우선 조회 (Cache-First)
             db_articles = self.db.get_articles_by_date_range(self.start_date_str, self.end_date_str, max_items)
 
@@ -207,7 +256,31 @@ class NewsAppApi:
                     end_date=dt_end,
                     max_target=max_items,
                     progress_callback=progress_callback,
+                    is_cancelled=lambda: self.stop_requested.is_set(),
                 )
+
+                if self.stop_requested.is_set():
+                    if df_news.empty:
+                        self.status.update({
+                            "is_running": False,
+                            "step": "stopped",
+                            "progress": 100,
+                            "message": "⏹️ 기사 수집 및 보고서 생성이 사용자에 의해 중단되었습니다.",
+                            "article_count": 0,
+                        })
+                        self.articles = []
+                    else:
+                        self.articles = df_news.to_dict(orient="records")
+                        inserted, skipped = self.db.save_articles(self.articles)
+                        self.last_csv_path = ""
+                        self.status.update({
+                            "is_running": False,
+                            "step": "stopped",
+                            "progress": 100,
+                            "message": f"⏹️ 보고서 생성이 중단되었습니다. (중단 전까지 수집된 {len(self.articles)}건 DB 저장 완료: 신규 {inserted}건, 중복 {skipped}건)",
+                            "article_count": len(self.articles),
+                        })
+                    return
 
                 if df_news.empty:
                     self.status.update({
@@ -223,6 +296,16 @@ class NewsAppApi:
                 self.articles = df_news.to_dict(orient="records")
                 inserted, skipped = self.db.save_articles(self.articles)
                 self.last_csv_path = ""
+
+            if self.stop_requested.is_set():
+                self.status.update({
+                    "is_running": False,
+                    "step": "stopped",
+                    "progress": 100,
+                    "message": "⏹️ AI 보고서 작성이 사용자에 의해 중단되었습니다.",
+                    "article_count": len(self.articles),
+                })
+                return
 
             # 3. AI 보고서 작성
             self.status.update({
