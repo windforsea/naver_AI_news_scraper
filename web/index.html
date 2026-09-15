@@ -92,7 +92,13 @@
       <div class="progress-wrap" id="progress-wrap" style="display: none;">
         <div class="progress-info">
           <span class="progress-msg" id="progress-msg">작업을 준비하고 있습니다...</span>
-          <span class="progress-pct" id="progress-pct">0%</span>
+          <div class="progress-controls">
+            <span class="progress-pct" id="progress-pct">0%</span>
+            <button type="button" id="stop-btn" class="btn action-btn-stop" title="진행 중인 작업을 즉시 중단합니다.">
+              <span class="btn-icon">⏹️</span>
+              <span class="btn-text">멈춤</span>
+            </button>
+          </div>
         </div>
         <div class="progress-bar-bg">
           <div class="progress-bar-fill" id="progress-bar-fill" style="width: 0%;"></div>

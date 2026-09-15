@@ -20,6 +20,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const progressMsg = document.getElementById("progress-msg");
   const progressPct = document.getElementById("progress-pct");
   const progressBarFill = document.getElementById("progress-bar-fill");
+  const stopBtn = document.getElementById("stop-btn");
 
   const articleCountBadge = document.getElementById("article-count-badge");
   const statPeriod = document.getElementById("stat-period");
@@ -452,6 +453,27 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // 4-3. [멈춤] 버튼 이벤트 (진행 중인 수집/분석 작업 안전 중단)
+  if (stopBtn) {
+    stopBtn.addEventListener("click", async () => {
+      if (confirm("진행 중인 작업을 중단하시겠습니까?\n(현재까지 수집된 기사는 DB에 안전하게 보관됩니다)")) {
+        try {
+          stopBtn.disabled = true;
+          const textSpan = stopBtn.querySelector(".btn-text");
+          if (textSpan) textSpan.textContent = "중단 중...";
+          if (window.pywebview && window.pywebview.api && typeof window.pywebview.api.stop_process === "function") {
+            await window.pywebview.api.stop_process();
+          }
+        } catch (err) {
+          console.error("중단 요청 실패:", err);
+          stopBtn.disabled = false;
+          const textSpan = stopBtn.querySelector(".btn-text");
+          if (textSpan) textSpan.textContent = "멈춤";
+        }
+      }
+    });
+  }
+
   // 5. 상태 폴링
   function startStatusPolling() {
     if (pollInterval) clearInterval(pollInterval);
@@ -484,6 +506,12 @@ document.addEventListener("DOMContentLoaded", () => {
             appStatusBadge.className = "badge secondary";
             await loadAndRenderResults();
             await refreshDbStats();
+          } else if (status.step === "stopped") {
+            appStatusBadge.textContent = "작업 중단됨";
+            appStatusBadge.className = "badge info";
+            await loadAndRenderResults();
+            await refreshDbStats();
+            alert(status.message || "작업이 중단되었습니다.");
           } else if (status.step === "error") {
             appStatusBadge.textContent = "오류 발생";
             appStatusBadge.className = "badge info";
@@ -687,6 +715,12 @@ document.addEventListener("DOMContentLoaded", () => {
     if (collectBtn) collectBtn.disabled = isRunning;
     if (reportBtn) reportBtn.disabled = isRunning;
     progressWrap.style.display = isRunning ? "flex" : "none";
+
+    if (stopBtn) {
+      stopBtn.disabled = false;
+      const textSpan = stopBtn.querySelector(".btn-text");
+      if (textSpan) textSpan.textContent = "멈춤";
+    }
 
     if (isRunning) {
       if (operationType === "collect" && collectBtn) {
